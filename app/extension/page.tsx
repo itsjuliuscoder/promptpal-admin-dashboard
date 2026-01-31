@@ -70,9 +70,14 @@ export default function AdminExtensionPage() {
   }
 
   const versionDistribution = Array.isArray(metrics.versionDistribution)
-    ? metrics.versionDistribution
+    ? metrics.versionDistribution.map((item: any, index: number) => ({
+        id: item.version || `version-${index}`,
+        version: item.version,
+        count: item.count,
+      }))
     : metrics.versionDistribution
-    ? Object.entries(metrics.versionDistribution).map(([version, count]) => ({
+    ? Object.entries(metrics.versionDistribution).map(([version, count], index) => ({
+        id: version || `version-${index}`,
         version,
         count,
       }))

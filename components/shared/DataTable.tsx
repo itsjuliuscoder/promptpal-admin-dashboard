@@ -4,9 +4,9 @@ import React, { useState, useMemo } from "react";
 import { FiChevronUp, FiChevronDown } from "react-icons/fi";
 
 interface Column<T> {
-  key: keyof T;
+  key: keyof T | string;
   label: string;
-  render?: (value: T[keyof T], row: T) => React.ReactNode;
+  render?: (value: any, row: T) => React.ReactNode;
   sortable?: boolean;
 }
 
@@ -18,15 +18,15 @@ interface DataTableProps<T> {
 
 type SortDirection = "asc" | "desc" | null;
 
-export default function DataTable<T extends { id?: string | number }>({
+export default function DataTable<T extends Record<string, any>>({
   columns,
   rows,
   emptyMessage = "No data available.",
 }: DataTableProps<T>) {
-  const [sortColumn, setSortColumn] = useState<keyof T | null>(null);
+  const [sortColumn, setSortColumn] = useState<keyof T | string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
-  const handleSort = (columnKey: keyof T) => {
+  const handleSort = (columnKey: keyof T | string) => {
     const column = columns.find((col) => col.key === columnKey);
     if (!column || column.sortable === false) return;
 
@@ -40,7 +40,7 @@ export default function DataTable<T extends { id?: string | number }>({
         setSortDirection("asc");
       }
     } else {
-      setSortColumn(columnKey);
+      setSortColumn(columnKey as keyof T);
       setSortDirection("asc");
     }
   };
@@ -112,12 +112,12 @@ export default function DataTable<T extends { id?: string | number }>({
           )}
           {sortedRows.map((row, index) => (
             <tr
-              key={row.id ? String(row.id) : `row-${index}`}
+              key={(row as any).id ? String((row as any).id) : `row-${index}`}
               className="border-t border-gray-200 dark:border-gray-800"
             >
               {columns.map((column) => (
                 <td key={String(column.key)} className="px-4 py-3">
-                  {column.render ? column.render(row[column.key], row) : String(row[column.key] ?? "")}
+                  {column.render ? column.render((row as any)[column.key], row) : String((row as any)[column.key] ?? "")}
                 </td>
               ))}
             </tr>
