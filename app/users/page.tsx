@@ -18,6 +18,7 @@ interface UserRow {
   subscriptionStatus?: string;
   authProvider?: string;
   blocked?: boolean;
+  onboardingCompleted?: boolean;
   createdAt?: string;
 }
 
@@ -98,7 +99,7 @@ export default function AdminUsersPage() {
       </FilterBar>
 
       {loading ? (
-        <TableSkeleton rows={10} columns={5} />
+        <TableSkeleton rows={10} columns={6} />
       ) : error ? (
         <ErrorState message={error} onRetry={() => loadUsers(1)} />
       ) : (
@@ -131,6 +132,16 @@ export default function AdminUsersPage() {
                 label: "Status",
                 render: (value) => (
                   <StatusBadge label={value ? "Blocked" : "Active"} />
+                ),
+              },
+              {
+                key: "onboardingCompleted",
+                label: "Onboarding",
+                render: (value) => (
+                  <StatusBadge
+                    label={value ? "Completed" : "Pending"}
+                    variant={value ? "success" : "warning"}
+                  />
                 ),
               },
             ]}
