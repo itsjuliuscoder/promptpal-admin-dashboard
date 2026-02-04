@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
 
 export default function AdminLoginPage() {
@@ -27,15 +28,35 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
-      <div className="w-full max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-lg p-8 space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            PromptPal Admin
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Sign in to manage the platform.
-          </p>
+    <div className="min-h-[700px] flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-lg p-6">
+        <div className="flex flex-col items-center">
+          {/* Logo - Light mode */}
+          <div className="dark:hidden">
+            <Image
+              src="/images/logo.png"
+              alt="PromptPal Logo"
+              width={180}
+              height={60}
+              priority
+              className="h-auto"
+            />
+          </div>
+          {/* Logo - Dark mode */}
+          <div className="hidden dark:block">
+            <Image
+              src="/images/logo-dark.png"
+              alt="PromptPal Logo"
+              width={180}
+              height={60}
+              priority
+              className="h-auto"
+            />
+          </div>
+        </div>
+        <div className="space-y-2 text-center -mt-2">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">PromptPal Admin</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Sign in to manage the platform.</p>
         </div>
 
         <form className="space-y-4" onSubmit={handleSubmit}>

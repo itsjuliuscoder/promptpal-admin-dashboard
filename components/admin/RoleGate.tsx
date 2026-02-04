@@ -12,7 +12,7 @@ export default function RoleGate({
   children: React.ReactNode;
 }) {
   const { admin } = useAdminAuth();
-  if (!admin || !hasPermission(admin.role, permission)) {
+  if (!admin || !hasPermission(admin.role, permission, admin.permissions)) {
     return null;
   }
   return <>{children}</>;

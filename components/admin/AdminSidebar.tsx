@@ -34,6 +34,7 @@ const sidebarItems: SidebarItem[] = [
   { label: "Content & Templates", path: "/content", icon: <FiActivity size={18} /> },
   { label: "Email", path: "/email", icon: <FiMail size={18} /> },
   { label: "System & Security", path: "/system", icon: <FiShield size={18} /> },
+  { label: "Admins", path: "/admins", icon: <FiUserPlus size={18} /> },
   { label: "Settings", path: "/settings", icon: <FiSettings size={18} /> },
 ];
 

@@ -7,11 +7,12 @@ import SectionCard from "@/components/shared/SectionCard";
 import ErrorState from "@/components/shared/ErrorState";
 import { adminService } from "@/lib/services/adminService";
 import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
-import { FiUserPlus, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiUserPlus, FiEye, FiEyeOff, FiMail } from "react-icons/fi";
 
 export default function CreateAdminPage() {
   const router = useRouter();
   const { admin } = useAdminAuth();
+  const [mode, setMode] = useState<"create" | "invite">("invite"); // Default to invite mode
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -25,6 +26,7 @@ export default function CreateAdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>("");
 
   // Check if current admin is super_admin
   const isSuperAdmin = admin?.role === "super_admin";
@@ -61,17 +63,20 @@ export default function CreateAdminPage() {
       setError("Please enter a valid email address");
       return false;
     }
-    if (!formData.password) {
-      setError("Password is required");
-      return false;
-    }
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      return false;
-    }
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return false;
+    // Password validation only required for direct creation
+    if (mode === "create") {
+      if (!formData.password) {
+        setError("Password is required");
+        return false;
+      }
+      if (formData.password.length < 6) {
+        setError("Password must be at least 6 characters long");
+        return false;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        setError("Passwords do not match");
+        return false;
+      }
     }
     return true;
   };
@@ -80,30 +85,49 @@ export default function CreateAdminPage() {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+    setSuccessMessage("");
 
     if (!validateForm()) {
       return;
     }
 
     if (!isSuperAdmin) {
-      setError("Only super admins can create new admin accounts");
+      setError("Only super admins can create or invite new admin accounts");
       return;
     }
 
     setLoading(true);
 
     try {
-      const payload = {
-        username: formData.username.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        role: formData.role,
-        permissions: formData.permissions.length > 0 ? formData.permissions : undefined,
-      };
+      if (mode === "invite") {
+        // Invitation flow
+        const payload = {
+          username: formData.username.trim(),
+          email: formData.email.trim(),
+          role: formData.role,
+          permissions: formData.permissions.length > 0 ? formData.permissions : undefined,
+        };
 
-      await adminService.createAdmin(payload);
+        const response = await adminService.inviteAdmin(payload);
+        setSuccess(true);
+        setSuccessMessage(
+          `Invitation sent successfully to ${formData.email}. They will receive an email with instructions to set their password.`
+        );
+      } else {
+        // Direct creation flow
+        const payload = {
+          username: formData.username.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+          role: formData.role,
+          permissions: formData.permissions.length > 0 ? formData.permissions : undefined,
+        };
 
-      setSuccess(true);
+        await adminService.createAdmin(payload);
+        setSuccess(true);
+        setSuccessMessage("Admin account created successfully!");
+      }
+
       setFormData({
         username: "",
         email: "",
@@ -113,16 +137,16 @@ export default function CreateAdminPage() {
         permissions: [],
       });
 
-      // Redirect after 2 seconds
+      // Redirect after 3 seconds
       setTimeout(() => {
         router.push("/system");
-      }, 2000);
+      }, 3000);
     } catch (err: any) {
-      console.error("Error creating admin:", err);
+      console.error(`Error ${mode === "invite" ? "inviting" : "creating"} admin:`, err);
       setError(
         err.response?.data?.error ||
           err.response?.data?.message ||
-          "Failed to create admin account. Please try again."
+          `Failed to ${mode === "invite" ? "invite" : "create"} admin account. Please try again.`
       );
     } finally {
       setLoading(false);
@@ -165,13 +189,62 @@ export default function CreateAdminPage() {
   return (
     <div className="p-6 space-y-6">
       <PageHeader
-        title="Create Admin"
-        description="Create a new admin account with specified role and permissions"
+        title={mode === "invite" ? "Invite Admin" : "Create Admin"}
+        description={
+          mode === "invite"
+            ? "Send an email invitation to a new admin. They will set their password via the invitation link."
+            : "Create a new admin account directly with specified role and permissions"
+        }
       />
+
+      {/* Mode Toggle */}
+      <SectionCard title="Creation Mode">
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("invite");
+              setError(null);
+              setSuccess(false);
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+              mode === "invite"
+                ? "border-[#A84C34] bg-[#A84C34] text-white"
+                : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-400"
+            }`}
+            disabled={loading}
+          >
+            <FiMail size={18} />
+            <span className="font-medium">Send Invitation</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("create");
+              setError(null);
+              setSuccess(false);
+            }}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+              mode === "create"
+                ? "border-[#A84C34] bg-[#A84C34] text-white"
+                : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:border-gray-400"
+            }`}
+            disabled={loading}
+          >
+            <FiUserPlus size={18} />
+            <span className="font-medium">Create Directly</span>
+          </button>
+        </div>
+        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+          {mode === "invite"
+            ? "The invited admin will receive an email with a secure link to set their password. This is the recommended method."
+            : "Create the admin account immediately with a password. Use this only if email invitation is not possible."}
+        </p>
+      </SectionCard>
 
       {success && (
         <div className="p-4 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800 rounded-lg">
-          Admin account created successfully! Redirecting...
+          {successMessage || (mode === "invite" ? "Invitation sent successfully! Redirecting..." : "Admin account created successfully! Redirecting...")}
         </div>
       )}
 
@@ -216,57 +289,61 @@ export default function CreateAdminPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Password *
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A84C34] dark:bg-gray-800 dark:text-white pr-10"
-                  placeholder="Enter password (min 6 characters)"
-                  required
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  disabled={loading}
-                >
-                  {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
-                </button>
-              </div>
-            </div>
+            {mode === "create" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A84C34] dark:bg-gray-800 dark:text-white pr-10"
+                      placeholder="Enter password (min 6 characters)"
+                      required={mode === "create"}
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      disabled={loading}
+                    >
+                      {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                    </button>
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Confirm Password *
-              </label>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A84C34] dark:bg-gray-800 dark:text-white pr-10"
-                  placeholder="Confirm password"
-                  required
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  disabled={loading}
-                >
-                  {showConfirmPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
-                </button>
-              </div>
-            </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Confirm Password *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#A84C34] dark:bg-gray-800 dark:text-white pr-10"
+                      placeholder="Confirm password"
+                      required={mode === "create"}
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      disabled={loading}
+                    >
+                      {showConfirmPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </SectionCard>
 
@@ -336,12 +413,12 @@ export default function CreateAdminPage() {
             {loading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Creating...
+                {mode === "invite" ? "Sending Invitation..." : "Creating..."}
               </>
             ) : (
               <>
-                <FiUserPlus size={18} />
-                Create Admin
+                {mode === "invite" ? <FiMail size={18} /> : <FiUserPlus size={18} />}
+                {mode === "invite" ? "Send Invitation" : "Create Admin"}
               </>
             )}
           </button>

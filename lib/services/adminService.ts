@@ -215,11 +215,21 @@ export const adminService = {
     return response.data;
   },
   sendEmail: async (payload: {
-    recipients: string[];
-    subject: string;
-    content: string;
+    recipients: string[] | Array<{ email: string; name?: string; company?: string }>;
+    subject?: string;
+    content?: string;
+    templateId?: string;
   }) => {
     const response = await axios.post("/admin/email/send", payload);
+    return response.data;
+  },
+  getEmailTemplates: async (category?: string) => {
+    const params = category ? { category } : {};
+    const response = await axios.get("/admin/email/templates", { params });
+    return response.data;
+  },
+  getEmailTemplate: async (templateId: string) => {
+    const response = await axios.get(`/admin/email/templates/${templateId}`);
     return response.data;
   },
   createAdmin: async (payload: {
@@ -230,6 +240,35 @@ export const adminService = {
     permissions?: string[];
   }) => {
     const response = await axios.post("/admin/create", payload);
+    return response.data;
+  },
+  inviteAdmin: async (payload: {
+    username: string;
+    email: string;
+    role?: string;
+    permissions?: string[];
+  }) => {
+    const response = await axios.post("/admin/invite", payload);
+    return response.data;
+  },
+  verifyInvitation: async (token: string) => {
+    const response = await axios.get(`/admin/invitation/${token}`);
+    return response.data;
+  },
+  acceptInvitation: async (token: string, password: string) => {
+    const response = await axios.post("/admin/invitation/accept", { token, password });
+    return response.data;
+  },
+  getAllAdmins: async (params: Record<string, string | number | undefined>) => {
+    const response = await axios.get("/admin/admins", { params });
+    return response.data;
+  },
+  resendInvitation: async (adminId: string) => {
+    const response = await axios.post(`/admin/admins/${adminId}/resend-invitation`);
+    return response.data;
+  },
+  cancelInvitation: async (adminId: string) => {
+    const response = await axios.delete(`/admin/admins/${adminId}/cancel-invitation`);
     return response.data;
   },
 };

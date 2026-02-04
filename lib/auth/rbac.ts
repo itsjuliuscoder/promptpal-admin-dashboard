@@ -12,6 +12,23 @@ export const getRolePermissions = (role?: string) => {
   return ROLE_PERMISSIONS[normalized] || [];
 };
 
-export const hasPermission = (role: string | undefined, permission: string) => {
-  return getRolePermissions(role).includes(permission);
+/**
+ * Check if an admin has a specific permission
+ * Checks both role-based permissions and custom permissions
+ * Custom permissions override/extend role permissions
+ */
+export const hasPermission = (
+  role: string | undefined,
+  permission: string,
+  customPermissions?: string[]
+) => {
+  // Get role-based permissions
+  const rolePermissions = getRolePermissions(role);
+  
+  // Merge with custom permissions (custom permissions take precedence)
+  const allPermissions = customPermissions
+    ? [...new Set([...rolePermissions, ...customPermissions])]
+    : rolePermissions;
+  
+  return allPermissions.includes(permission);
 };
