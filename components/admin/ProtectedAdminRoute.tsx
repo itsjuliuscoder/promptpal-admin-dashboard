@@ -14,12 +14,15 @@ export default function ProtectedAdminRoute({
   const { token } = useAdminAuth();
   const [mounted, setMounted] = useState(false);
 
+  // Public routes that don't require authentication
+  const publicRoutes = ["/login", "/admin/accept-invitation"];
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (mounted && !token && pathname !== "/login") {
+    if (mounted && !token && !publicRoutes.includes(pathname)) {
       router.replace("/login");
     }
   }, [mounted, token, router, pathname]);
@@ -33,7 +36,7 @@ export default function ProtectedAdminRoute({
     );
   }
 
-  if (!token && pathname !== "/login") {
+  if (!token && !publicRoutes.includes(pathname)) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-500">
         Checking admin session...
