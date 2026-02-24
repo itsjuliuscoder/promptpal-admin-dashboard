@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { FiActivity } from "react-icons/fi";
 
 interface ActivityEvent {
   type: string;
@@ -8,26 +9,52 @@ interface ActivityEvent {
   createdAt: string;
 }
 
+function formatTimestamp(createdAt: string): string {
+  return new Date(createdAt).toLocaleString(undefined, {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
 export default function ActivityFeed({ events }: { events: ActivityEvent[] }) {
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
         Recent Activity
       </h3>
-      <div className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
-        {events.length === 0 && <p>No recent activity.</p>}
-        {events.map((event, index) => (
-          <div key={`${event.type}-${index}`} className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-900 dark:text-gray-100">{event.label}</p>
-              <p className="text-xs">{event.type.replace(/_/g, " ")}</p>
-            </div>
-            <span className="text-xs">
-              {new Date(event.createdAt).toLocaleDateString()}
-            </span>
-          </div>
-        ))}
-      </div>
+      {events.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+          <FiActivity className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" aria-hidden="true" />
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No recent activity</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            Events will appear here as they occur
+          </p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-gray-200 dark:divide-gray-700" role="list">
+          {events.map((event, index) => (
+            <li
+              key={`${event.type}-${index}`}
+              className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {event.label}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {event.type.replace(/_/g, " ")}
+                </p>
+              </div>
+              <time
+                dateTime={event.createdAt}
+                className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0"
+              >
+                {formatTimestamp(event.createdAt)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { FiAlertCircle } from "react-icons/fi";
 import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
 
 export default function AdminLoginPage() {
@@ -61,33 +62,44 @@ export default function AdminLoginPage() {
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="admin-username" className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Username
             </label>
             <input
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              id="admin-username"
+              name="username"
+              autoComplete="username"
+              className="admin-input w-full focus:ring-2 focus:ring-[#A84C34] focus:border-[#A84C34] rounded-lg px-3 py-2.5 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="admin-password" className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Password
             </label>
             <input
+              id="admin-password"
+              name="password"
               type="password"
-              className="w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              autoComplete="current-password"
+              className="admin-input w-full focus:outline-none focus:ring-2 focus:ring-[#A84C34] focus:border-[#A84C34] rounded-lg px-3 py-2.5 min-h-[44px] border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400" role="alert">
+              <FiAlertCircle size={18} aria-hidden="true" className="flex-shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#A84C34] text-white py-2 rounded-lg font-medium hover:bg-[#8b3f2b] transition-colors disabled:opacity-60"
+            className="w-full bg-[#A84C34] text-white py-2.5 min-h-[44px] rounded-lg font-medium hover:bg-[#8b3f2b] transition-colors disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#A84C34] focus:ring-offset-2"
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>

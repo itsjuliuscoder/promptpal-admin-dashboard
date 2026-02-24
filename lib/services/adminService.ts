@@ -35,6 +35,14 @@ export const adminService = {
     const response = await axios.put(`/admin/users/${userId}/restore`);
     return response.data;
   },
+  blockUser: async (userId: string, isBlocked: boolean) => {
+    const response = await axios.patch(`/admin/block-user/${userId}`, { isBlocked });
+    return response.data;
+  },
+  editBalance: async (userId: string, amount: number) => {
+    const response = await axios.patch(`/admin/edit-balance/${userId}`, { amount });
+    return response.data;
+  },
   getUserPrompts: async (userId: string, params?: Record<string, number>) => {
     const response = await axios.get(`/admin/users/${userId}/prompts`, { params });
     return response.data;
@@ -146,6 +154,22 @@ export const adminService = {
     const response = await axios.post(`/admin/billing/subscriptions/${subscriptionId}/refund`);
     return response.data;
   },
+  getPlanLimits: async () => {
+    const response = await axios.get("/admin/billing/plan-limits");
+    return response.data;
+  },
+  getBillingChurn: async () => {
+    const response = await axios.get("/admin/billing/churn");
+    return response.data;
+  },
+  getBillingTrialConversion: async () => {
+    const response = await axios.get("/admin/billing/trial-conversion");
+    return response.data;
+  },
+  getBillingPaymentHealth: async () => {
+    const response = await axios.get("/admin/billing/payment-health");
+    return response.data;
+  },
   getTemplates: async (params: Record<string, number | undefined>) => {
     const response = await axios.get("/admin/templates", { params });
     return response.data;
@@ -170,12 +194,48 @@ export const adminService = {
     const response = await axios.post(`/admin/templates/${templateId}/categorize`, { category });
     return response.data;
   },
+  getWorkspaces: async (params?: Record<string, string | number | undefined>) => {
+    const response = await axios.get("/admin/workspaces", { params });
+    return response.data;
+  },
+  getWorkspaceStats: async () => {
+    const response = await axios.get("/admin/workspaces/stats");
+    return response.data;
+  },
+  getCollections: async (params?: Record<string, string | number | undefined>) => {
+    const response = await axios.get("/admin/collections", { params });
+    return response.data;
+  },
+  getCollectionStats: async () => {
+    const response = await axios.get("/admin/collections/stats");
+    return response.data;
+  },
+  getTemplateStats: async () => {
+    const response = await axios.get("/admin/templates/stats");
+    return response.data;
+  },
   getSystemAuthStatus: async () => {
     const response = await axios.get("/admin/system/auth-status");
     return response.data;
   },
   getFailedLogins: async () => {
     const response = await axios.get("/admin/system/failed-logins");
+    return response.data;
+  },
+  getAIHealth: async () => {
+    const response = await axios.get("/admin/system/ai-health");
+    return response.data;
+  },
+  getSuspiciousActivity: async () => {
+    const response = await axios.get("/admin/security/suspicious-activity");
+    return response.data;
+  },
+  getAbuseSignals: async () => {
+    const response = await axios.get("/admin/security/abuse-signals");
+    return response.data;
+  },
+  getInjectionAttempts: async () => {
+    const response = await axios.get("/admin/security/injection-attempts");
     return response.data;
   },
   getRolesAndPermissions: async () => {

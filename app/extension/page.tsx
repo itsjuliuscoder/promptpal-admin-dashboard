@@ -14,6 +14,17 @@ export default function AdminExtensionPage() {
   const [metrics, setMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bannerMessage, setBannerMessage] = useState("");
+  const [bannerEnabled, setBannerEnabled] = useState(false);
+  const [bannerLevel, setBannerLevel] = useState("info");
+  const [bannerSaving, setBannerSaving] = useState(false);
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState("");
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
+  const [forceUpdateEnabled, setForceUpdateEnabled] = useState(false);
+  const [forceUpdateMinVersion, setForceUpdateMinVersion] = useState("");
+  const [forceUpdateMessage, setForceUpdateMessage] = useState("");
+  const [forceUpdateSaving, setForceUpdateSaving] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -106,7 +117,7 @@ export default function AdminExtensionPage() {
             value={new Date(metrics.lastReportedAt).toLocaleDateString()}
           />
         )}
-      </div>
+        </div>
 
       <SectionCard title="Version Distribution">
         {versionDistribution.length > 0 ? (
@@ -137,6 +148,175 @@ export default function AdminExtensionPage() {
         ) : (
           <EmptyState message="No version distribution data available" />
         )}
+      </SectionCard>
+
+      <SectionCard title="Extension Banner">
+        <div className="space-y-4 max-w-lg">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Message
+            </label>
+            <input
+              type="text"
+              value={bannerMessage}
+              onChange={(e) => setBannerMessage(e.target.value)}
+              placeholder="Banner text shown in extension"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Level
+            </label>
+            <select
+              value={bannerLevel}
+              onChange={(e) => setBannerLevel(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+            >
+              <option value="info">Info</option>
+              <option value="warning">Warning</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="banner-enabled"
+              checked={bannerEnabled}
+              onChange={(e) => setBannerEnabled(e.target.checked)}
+              className="rounded border-gray-300 dark:border-gray-600"
+            />
+            <label htmlFor="banner-enabled" className="text-sm text-gray-700 dark:text-gray-300">
+              Show banner
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={bannerSaving}
+            onClick={async () => {
+              setBannerSaving(true);
+              try {
+                await adminService.setExtensionBanner({
+                  message: bannerMessage,
+                  enabled: bannerEnabled,
+                  level: bannerLevel,
+                });
+              } finally {
+                setBannerSaving(false);
+              }
+            }}
+            className="px-4 py-2 bg-[#A84C34] text-white rounded-lg hover:bg-[#92361a] disabled:opacity-50 text-sm font-medium"
+          >
+            {bannerSaving ? "Saving…" : "Save banner"}
+          </button>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Maintenance Mode">
+        <div className="space-y-4 max-w-lg">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Message (optional)
+            </label>
+            <input
+              type="text"
+              value={maintenanceMessage}
+              onChange={(e) => setMaintenanceMessage(e.target.value)}
+              placeholder="Message shown during maintenance"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="maintenance-enabled"
+              checked={maintenanceEnabled}
+              onChange={(e) => setMaintenanceEnabled(e.target.checked)}
+              className="rounded border-gray-300 dark:border-gray-600"
+            />
+            <label htmlFor="maintenance-enabled" className="text-sm text-gray-700 dark:text-gray-300">
+              Enable maintenance mode
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={maintenanceSaving}
+            onClick={async () => {
+              setMaintenanceSaving(true);
+              try {
+                await adminService.setExtensionMaintenance({
+                  enabled: maintenanceEnabled,
+                  message: maintenanceMessage || undefined,
+                });
+              } finally {
+                setMaintenanceSaving(false);
+              }
+            }}
+            className="px-4 py-2 bg-[#A84C34] text-white rounded-lg hover:bg-[#92361a] disabled:opacity-50 text-sm font-medium"
+          >
+            {maintenanceSaving ? "Saving…" : "Save maintenance"}
+          </button>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Force Update">
+        <div className="space-y-4 max-w-lg">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Minimum version
+            </label>
+            <input
+              type="text"
+              value={forceUpdateMinVersion}
+              onChange={(e) => setForceUpdateMinVersion(e.target.value)}
+              placeholder="e.g. 1.2.0"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Message (optional)
+            </label>
+            <input
+              type="text"
+              value={forceUpdateMessage}
+              onChange={(e) => setForceUpdateMessage(e.target.value)}
+              placeholder="Message shown when update required"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="force-update-enabled"
+              checked={forceUpdateEnabled}
+              onChange={(e) => setForceUpdateEnabled(e.target.checked)}
+              className="rounded border-gray-300 dark:border-gray-600"
+            />
+            <label htmlFor="force-update-enabled" className="text-sm text-gray-700 dark:text-gray-300">
+              Require update (users below min version will be prompted)
+            </label>
+          </div>
+          <button
+            type="button"
+            disabled={forceUpdateSaving}
+            onClick={async () => {
+              setForceUpdateSaving(true);
+              try {
+                await adminService.setExtensionForceUpdate({
+                  enabled: forceUpdateEnabled,
+                  minVersion: forceUpdateMinVersion || undefined,
+                  message: forceUpdateMessage || undefined,
+                });
+              } finally {
+                setForceUpdateSaving(false);
+              }
+            }}
+            className="px-4 py-2 bg-[#A84C34] text-white rounded-lg hover:bg-[#92361a] disabled:opacity-50 text-sm font-medium"
+          >
+            {forceUpdateSaving ? "Saving…" : "Save force update"}
+          </button>
+        </div>
       </SectionCard>
     </div>
   );

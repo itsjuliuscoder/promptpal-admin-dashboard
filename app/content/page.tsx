@@ -42,12 +42,12 @@ export default function AdminContentPage() {
         ) : error ? (
           <ErrorState message={error} onRetry={() => window.location.reload()} />
         ) : (
-          <DataTable
-            rows={templates}
-            columns={[
-              { key: "title", label: "Title" },
-              { key: "templateType", label: "Type" },
-              { key: "category", label: "Category" },
+        <DataTable
+          rows={templates}
+          columns={[
+            { key: "title", label: "Title" },
+            { key: "templateType", label: "Type" },
+            { key: "category", label: "Category" },
               {
                 key: "updatedAt",
                 label: "Updated",
@@ -57,9 +57,9 @@ export default function AdminContentPage() {
                   </span>
                 ),
               },
-            ]}
+          ]}
             emptyMessage="No templates found"
-          />
+        />
         )}
       </SectionCard>
     </div>

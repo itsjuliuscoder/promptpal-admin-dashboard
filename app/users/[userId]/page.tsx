@@ -17,6 +17,9 @@ export default function AdminUserProfilePage() {
   const [activity, setActivity] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [blockSaving, setBlockSaving] = useState(false);
+  const [balanceAmount, setBalanceAmount] = useState("");
+  const [balanceSaving, setBalanceSaving] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -93,6 +96,30 @@ export default function AdminUserProfilePage() {
     return <div className="p-6 text-gray-500">No user data available.</div>;
   }
 
+  const isBlocked = Boolean(profile.blocked);
+  const handleBlockToggle = async () => {
+    setBlockSaving(true);
+    try {
+      await adminService.blockUser(userId, !isBlocked);
+      setProfile((prev: any) => (prev ? { ...prev, blocked: !isBlocked } : null));
+    } catch (err) {
+      console.error("Failed to update block status", err);
+    } finally {
+      setBlockSaving(false);
+    }
+  };
+  const handleEditBalance = async () => {
+    const amount = Number(balanceAmount);
+    if (Number.isNaN(amount)) return;
+    setBalanceSaving(true);
+    try {
+      await adminService.editBalance(userId, amount);
+      setBalanceAmount("");
+    } finally {
+      setBalanceSaving(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <SectionCard title="User Identity">
@@ -105,6 +132,49 @@ export default function AdminUserProfilePage() {
           <p><strong>Last Login:</strong> {profile.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString() : "Never"}</p>
           <p><strong>Plan Start:</strong> {profile.planStartDate ? new Date(profile.planStartDate).toLocaleDateString() : "N/A"}</p>
           <p><strong>Plan End:</strong> {profile.planEndDate ? new Date(profile.planEndDate).toLocaleDateString() : "N/A"}</p>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="User Actions">
+        <div className="flex flex-wrap gap-6">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={blockSaving}
+              onClick={handleBlockToggle}
+              className={`px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${
+                isBlocked
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-red-600 hover:bg-red-700 text-white"
+              }`}
+            >
+              {blockSaving ? "Saving…" : isBlocked ? "Unblock user" : "Block user"}
+            </button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {isBlocked ? "User is blocked" : "User is active"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <label htmlFor="balance-amount" className="text-sm text-gray-700 dark:text-gray-300">
+              Edit balance (amount):
+            </label>
+            <input
+              id="balance-amount"
+              type="number"
+              value={balanceAmount}
+              onChange={(e) => setBalanceAmount(e.target.value)}
+              placeholder="0"
+              className="w-24 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
+            />
+            <button
+              type="button"
+              disabled={balanceSaving || balanceAmount === ""}
+              onClick={handleEditBalance}
+              className="px-4 py-2 bg-[#A84C34] text-white rounded-lg hover:bg-[#92361a] disabled:opacity-50 text-sm font-medium"
+            >
+              {balanceSaving ? "Saving…" : "Apply"}
+            </button>
+          </div>
         </div>
       </SectionCard>
 

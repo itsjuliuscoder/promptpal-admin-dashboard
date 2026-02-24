@@ -15,6 +15,8 @@ export default function AdminAnalyticsPage() {
   const [usage, setUsage] = useState<any[]>([]);
   const [funnel, setFunnel] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
+  const [refineChat, setRefineChat] = useState<any[]>([]);
+  const [templateAdoption, setTemplateAdoption] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,14 +25,18 @@ export default function AdminAnalyticsPage() {
       try {
         setLoading(true);
         setError(null);
-        const [usageRes, funnelRes, modelRes] = await Promise.all([
+        const [usageRes, funnelRes, modelRes, refineRes, templateRes] = await Promise.all([
           adminService.getAnalyticsPromptUsage(30),
           adminService.getAnalyticsFunnel(),
           adminService.getAnalyticsModelDistribution(),
+          adminService.getAnalyticsRefineChat(30),
+          adminService.getAnalyticsTemplateAdoption(),
         ]);
-        setUsage(usageRes.data || []);
-        setFunnel(funnelRes.data || []);
-        setModels(modelRes.data || []);
+        setUsage(usageRes.data ?? []);
+        setFunnel(funnelRes.data ?? []);
+        setModels(modelRes.data ?? []);
+        setRefineChat(Array.isArray(refineRes?.data) ? refineRes.data : []);
+        setTemplateAdoption(Array.isArray(templateRes?.data) ? templateRes.data : []);
       } catch (err) {
         console.error("Failed to load analytics", err);
         setError("Failed to load analytics data. Please try again.");
@@ -105,6 +111,49 @@ export default function AdminAnalyticsPage() {
           </ResponsiveContainer>
         ) : (
           <EmptyState message="No funnel data available" />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Refine Chat Usage (Last 30 Days)">
+        {refineChat && refineChat.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={refineChat}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="count" stroke="#8b5cf6" name="Refine Chat Sessions" />
+              <Line type="monotone" dataKey="sessions" stroke="#06b6d4" name="Sessions" />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyState message="No Refine Chat usage data for the selected period" />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Template Adoption">
+        {templateAdoption && templateAdoption.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={templateAdoption.map((row: any) => ({
+                ...row,
+                label: row.name ?? row.title ?? row.templateName ?? row.id ?? "—",
+                value: row.count ?? row.uses ?? row.adoptions ?? 0,
+              }))}
+              layout="vertical"
+              margin={{ left: 80 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="label" width={80} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="value" fill="#d97706" name="Uses" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyState message="No template adoption data available" />
         )}
       </SectionCard>
 

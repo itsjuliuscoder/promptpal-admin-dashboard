@@ -44,14 +44,28 @@ export default function AdminOverviewPage() {
           title="Overview"
           description="Platform metrics, status, and recent activity"
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <section className="space-y-4">
+          <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-24 max-w-xs" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 animate-pulse">
               <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-20 mb-3"></div>
               <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-16"></div>
             </div>
           ))}
         </div>
+        </section>
+        <section className="space-y-4">
+          <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-28 max-w-xs" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={`p-${i}`} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 animate-pulse">
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-20 mb-3"></div>
+              <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-16"></div>
+            </div>
+          ))}
+        </div>
+        </section>
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
           <div className="xl:col-span-2">
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 animate-pulse">
@@ -90,17 +104,39 @@ export default function AdminOverviewPage() {
     );
   }
 
+  const keyMetrics = data.kpis.slice(0, 4);
+  const productUsage = data.kpis.slice(4);
+
   return (
     <div className="p-6 space-y-6">
       <PageHeader
         title="Overview"
         description="Platform metrics, status, and recent activity"
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-        {data.kpis.map((kpi) => (
-          <KpiCard key={kpi.key} label={kpi.label} value={kpi.value} unit={kpi.unit} />
-        ))}
-      </div>
+
+      <section className="space-y-4" aria-labelledby="key-metrics-heading">
+        <h2 id="key-metrics-heading" className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          Key metrics
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {keyMetrics.map((kpi) => (
+            <KpiCard key={kpi.key} label={kpi.label} value={kpi.value} unit={kpi.unit} />
+          ))}
+        </div>
+      </section>
+
+      {productUsage.length > 0 && (
+        <section className="space-y-4" aria-labelledby="product-usage-heading">
+          <h2 id="product-usage-heading" className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            Product usage
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            {productUsage.map((kpi) => (
+              <KpiCard key={kpi.key} label={kpi.label} value={kpi.value} unit={kpi.unit} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="xl:col-span-2">

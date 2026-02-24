@@ -34,7 +34,7 @@ export default function StatusBadge({ label, variant }: StatusBadgeProps) {
     color =
       normalized === "active" || normalized === "completed"
         ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-        : normalized === "blocked" || normalized === "suspended"
+      : normalized === "blocked" || normalized === "suspended"
         ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
         : normalized === "pending"
         ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"

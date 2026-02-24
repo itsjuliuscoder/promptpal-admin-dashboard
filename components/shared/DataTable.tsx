@@ -72,8 +72,8 @@ export default function DataTable<T extends Record<string, any>>({
   }, [rows, sortColumn, sortDirection]);
 
   return (
-    <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl">
-      <table className="min-w-full text-sm">
+    <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm">
+      <table className="min-w-full text-sm" aria-label="Data table">
         <thead className="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
           <tr>
             {columns.map((column) => {
@@ -97,23 +97,25 @@ export default function DataTable<T extends Record<string, any>>({
                       </span>
                     )}
                   </div>
-                </th>
+              </th>
               );
             })}
           </tr>
         </thead>
         <tbody className="bg-white dark:bg-gray-950 text-gray-700 dark:text-gray-200">
-          {sortedRows.length === 0 && (
+          {sortedRows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-4 py-6 text-center text-gray-500">
-                {emptyMessage}
+              <td colSpan={columns.length} className="p-0">
+                <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">{emptyMessage}</p>
+                </div>
               </td>
             </tr>
-          )}
-          {sortedRows.map((row, index) => (
+          ) : (
+          sortedRows.map((row, index) => (
             <tr
               key={(row as any).id ? String((row as any).id) : `row-${index}`}
-              className="border-t border-gray-200 dark:border-gray-800"
+              className="border-t border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
             >
               {columns.map((column) => (
                 <td key={String(column.key)} className="px-4 py-3">
@@ -121,7 +123,8 @@ export default function DataTable<T extends Record<string, any>>({
                 </td>
               ))}
             </tr>
-          ))}
+          ))
+          )}
         </tbody>
       </table>
     </div>

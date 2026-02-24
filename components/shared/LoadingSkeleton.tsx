@@ -30,7 +30,7 @@ export default function LoadingSkeleton({
 export function TableSkeleton({ rows = 5, columns = 4 }: { rows?: number; columns?: number }) {
   return (
     <div className="animate-pulse">
-      <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl">
+      <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-900">
             <tr>

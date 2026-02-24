@@ -18,6 +18,11 @@ export default function AdminSystemPage() {
   const [authStatus, setAuthStatus] = useState<any>(null);
   const [roles, setRoles] = useState<any>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [failedLogins, setFailedLogins] = useState<any[]>([]);
+  const [aiHealth, setAiHealth] = useState<any>(null);
+  const [suspiciousActivity, setSuspiciousActivity] = useState<any[]>([]);
+  const [abuseSignals, setAbuseSignals] = useState<any[]>([]);
+  const [injectionAttempts, setInjectionAttempts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,14 +31,25 @@ export default function AdminSystemPage() {
       try {
         setLoading(true);
         setError(null);
-        const [authRes, rolesRes, logsRes] = await Promise.all([
-          adminService.getSystemAuthStatus(),
-          adminService.getRolesAndPermissions(),
-          adminService.getAuditLogs({ page: 1, limit: 20 }),
-        ]);
-        setAuthStatus(authRes.data || authRes);
-        setRoles(rolesRes.data || rolesRes);
-        setAuditLogs(logsRes.data || []);
+        const [authRes, rolesRes, logsRes, failedRes, aiRes, suspiciousRes, abuseRes, injectionRes] =
+          await Promise.all([
+            adminService.getSystemAuthStatus(),
+            adminService.getRolesAndPermissions(),
+            adminService.getAuditLogs({ page: 1, limit: 20 }),
+            adminService.getFailedLogins().catch(() => ({ data: [] })),
+            adminService.getAIHealth().catch(() => ({ data: null })),
+            adminService.getSuspiciousActivity().catch(() => ({ data: [] })),
+            adminService.getAbuseSignals().catch(() => ({ data: [] })),
+            adminService.getInjectionAttempts().catch(() => ({ data: [] })),
+          ]);
+        setAuthStatus(authRes.data ?? authRes);
+        setRoles(rolesRes.data ?? rolesRes);
+        setAuditLogs(Array.isArray(logsRes.data) ? logsRes.data : []);
+        setFailedLogins(Array.isArray(failedRes?.data) ? failedRes.data : []);
+        setAiHealth(aiRes?.data ?? aiRes ?? null);
+        setSuspiciousActivity(Array.isArray(suspiciousRes?.data) ? suspiciousRes.data : []);
+        setAbuseSignals(Array.isArray(abuseRes?.data) ? abuseRes.data : []);
+        setInjectionAttempts(Array.isArray(injectionRes?.data) ? injectionRes.data : []);
       } catch (err) {
         console.error("Failed to load system data", err);
         setError("Failed to load system data. Please try again.");
@@ -150,6 +166,122 @@ export default function AdminSystemPage() {
                 </div>
               </div>
             ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Failed Logins">
+        <DataTable
+          rows={failedLogins}
+          columns={[
+            { key: "email", label: "Email" },
+            { key: "ip", label: "IP" },
+            {
+              key: "createdAt",
+              label: "Time",
+              render: (value) => (
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {value ? new Date(value).toLocaleString() : "N/A"}
+                </span>
+              ),
+            },
+          ]}
+          emptyMessage="No failed login attempts"
+        />
+      </SectionCard>
+
+      <SectionCard title="AI Health">
+        {aiHealth != null && typeof aiHealth === "object" ? (
+          <div className="space-y-2 text-sm">
+            {Array.isArray(aiHealth) ? (
+              <pre className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg overflow-auto max-h-48">
+                {JSON.stringify(aiHealth, null, 2)}
+              </pre>
+            ) : (
+              <ul className="space-y-1">
+                {Object.entries(aiHealth).map(([key, val]) => (
+                  <li key={key} className="flex justify-between gap-2">
+                    <span className="text-gray-600 dark:text-gray-400 capitalize">
+                      {String(key).replace(/([A-Z])/g, " $1").trim()}
+                    </span>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {typeof val === "object" ? JSON.stringify(val) : String(val)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500 dark:text-gray-400">No AI health data available.</p>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Security">
+        <div className="space-y-6">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              Suspicious Activity
+            </h4>
+            <DataTable
+              rows={suspiciousActivity}
+              columns={[
+                { key: "type", label: "Type" },
+                { key: "userId", label: "User" },
+                {
+                  key: "createdAt",
+                  label: "Time",
+                  render: (value) => (
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {value ? new Date(value).toLocaleString() : "N/A"}
+                    </span>
+                  ),
+                },
+              ]}
+              emptyMessage="No suspicious activity"
+            />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Abuse Signals</h4>
+            <DataTable
+              rows={abuseSignals}
+              columns={[
+                { key: "signal", label: "Signal" },
+                { key: "userId", label: "User" },
+                {
+                  key: "createdAt",
+                  label: "Time",
+                  render: (value) => (
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {value ? new Date(value).toLocaleString() : "N/A"}
+                    </span>
+                  ),
+                },
+              ]}
+              emptyMessage="No abuse signals"
+            />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+              Injection Attempts
+            </h4>
+            <DataTable
+              rows={injectionAttempts}
+              columns={[
+                { key: "type", label: "Type" },
+                { key: "source", label: "Source" },
+                {
+                  key: "createdAt",
+                  label: "Time",
+                  render: (value) => (
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {value ? new Date(value).toLocaleString() : "N/A"}
+                    </span>
+                  ),
+                },
+              ]}
+              emptyMessage="No injection attempts"
+            />
+          </div>
         </div>
       </SectionCard>
 

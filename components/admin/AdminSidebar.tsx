@@ -8,6 +8,8 @@ import {
   FiActivity,
   FiBarChart2,
   FiBookOpen,
+  FiChevronLeft,
+  FiChevronRight,
   FiCreditCard,
   FiGrid,
   FiMail,
@@ -68,26 +70,30 @@ export default function AdminSidebar({
         <button
           type="button"
           onClick={() => setIsExpanded?.(!isExpanded)}
-          className="hidden lg:inline-flex text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
-          aria-label="Toggle sidebar"
+          className="hidden lg:inline-flex p-1.5 min-w-[44px] min-h-[44px] items-center justify-center rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#A84C34] focus:ring-offset-2"
+          aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
         >
-          <FiGrid size={18} />
+          {isExpanded ? <FiChevronLeft size={18} /> : <FiChevronRight size={18} />}
         </button>
       </div>
 
-      <nav className="px-3 py-4 space-y-2">
+      <nav className="px-3 py-4 pb-6 space-y-1" aria-label="Admin navigation">
         {sidebarItems.map((item) => {
           const isActive = item.path === "/" ? pathname === "/" : pathname.startsWith(item.path);
           return (
-            <Link key={item.path} href={item.path}>
+            <Link
+              key={item.path}
+              href={item.path}
+              className={`flex items-center min-h-[44px] rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#A84C34] focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-900 border-l-2 ${
+                isActive
+                  ? "bg-[#F4E7E2] text-[#A84C34] dark:bg-gray-800 border-[#A84C34]"
+                  : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 border-transparent"
+              }`}
+              onClick={() => setIsMobileMenuOpen?.(false)}
+            >
               <motion.div
-                whileHover={{ x: 4 }}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-[#F4E7E2] text-[#A84C34] dark:bg-gray-800"
-                    : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                }`}
-                onClick={() => setIsMobileMenuOpen?.(false)}
+                whileHover={{ x: 2 }}
+                className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg"
               >
                 <span aria-hidden="true">{item.icon}</span>
                 {isExpanded && <span>{item.label}</span>}
