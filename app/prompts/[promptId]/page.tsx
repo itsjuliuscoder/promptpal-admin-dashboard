@@ -44,6 +44,18 @@ export default function AdminPromptDetailPage() {
         </pre>
       </SectionCard>
 
+      <SectionCard title="Refined output">
+        {prompt.optimizedText?.trim() ? (
+          <pre className="text-xs text-gray-500 dark:text-gray-400 whitespace-pre-wrap">
+            {prompt.optimizedText}
+          </pre>
+        ) : (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            No refined output for this prompt.
+          </p>
+        )}
+      </SectionCard>
+
       <SectionCard title="Variables">
         <pre className="text-xs text-gray-500 dark:text-gray-400">
           {JSON.stringify(prompt.variables || [], null, 2)}
