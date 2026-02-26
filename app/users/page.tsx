@@ -19,6 +19,7 @@ interface UserRow {
   authProvider?: string;
   blocked?: boolean;
   onboardingCompleted?: boolean;
+  lastLoginAt?: string;
   createdAt?: string;
 }
 
@@ -99,7 +100,7 @@ export default function AdminUsersPage() {
       </FilterBar>
 
       {loading ? (
-        <TableSkeleton rows={10} columns={6} />
+        <TableSkeleton rows={10} columns={7} />
       ) : error ? (
         <ErrorState message={error} onRetry={() => loadUsers(1)} />
       ) : (
@@ -143,6 +144,16 @@ export default function AdminUsersPage() {
                     variant={value ? "success" : "warning"}
                   />
                 ),
+              },
+              {
+                key: "lastLoginAt",
+                label: "Last login",
+                render: (value) =>
+                  value
+                    ? new Date(value).toLocaleDateString(undefined, {
+                        dateStyle: "medium",
+                      })
+                    : "Never",
               },
             ]}
           />
