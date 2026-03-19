@@ -1,5 +1,71 @@
 import axios from "@/lib/config/axios-config";
 
+// ---------------------------------------------------------------------------
+// Refine Chat Monitoring Types
+// ---------------------------------------------------------------------------
+
+export interface RefineChatSummary {
+  totalSessions: number;
+  uniqueUsers: number;
+  avgQualityScore: number | null;
+  avgMessagesPerSession: number | null;
+  sessionsToday: number;
+  totalRefinements: number;
+}
+
+export interface RefineChatQualityBreakdown {
+  clarity: number | null;
+  specificity: number | null;
+  completeness: number | null;
+  reusability: number | null;
+}
+
+export interface RefineChatByProvider {
+  provider: string;
+  sessions: number;
+  avgQuality: number | null;
+}
+
+export interface RefineChatByPlan {
+  plan: string;
+  sessions: number;
+}
+
+export interface RefineChatTimeSeriesPoint {
+  date: string;
+  sessions: number;
+  messages: number;
+  uniqueUsers: number;
+}
+
+export interface RefineChatStatsData {
+  summary: RefineChatSummary;
+  qualityBreakdown: RefineChatQualityBreakdown;
+  byProvider: RefineChatByProvider[];
+  byPlan: RefineChatByPlan[];
+  timeSeries: RefineChatTimeSeriesPoint[];
+}
+
+export interface RefineChatSession {
+  sessionId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  provider: string | null;
+  messageCount: number;
+  qualityScore: number | null;
+  totalRefinements: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RefineChatSessionsData {
+  sessions: RefineChatSession[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   pagination?: {
@@ -122,6 +188,10 @@ export const adminService = {
     const response = await axios.get("/admin/analytics/refine-chat", { params: { days } });
     return response.data;
   },
+  getAnalyticsRefineAgent: async (days: number) => {
+    const response = await axios.get("/admin/analytics/refine-agent", { params: { days } });
+    return response.data;
+  },
   getAnalyticsTemplateAdoption: async () => {
     const response = await axios.get("/admin/analytics/template-adoption");
     return response.data;
@@ -132,6 +202,21 @@ export const adminService = {
   },
   getAnalyticsFunnel: async () => {
     const response = await axios.get("/admin/analytics/funnel");
+    return response.data;
+  },
+  getRefineChatStats: async (days: number): Promise<{ success: boolean; data: RefineChatStatsData }> => {
+    const response = await axios.get("/admin/refine-chat/stats", { params: { days } });
+    return response.data;
+  },
+  getRefineChatSessions: async (params: {
+    page?: number;
+    limit?: number;
+    provider?: string;
+    minQuality?: number;
+    days?: number;
+    sort?: string;
+  }): Promise<{ success: boolean; data: RefineChatSessionsData }> => {
+    const response = await axios.get("/admin/refine-chat/sessions", { params });
     return response.data;
   },
   getBillingRevenue: async () => {

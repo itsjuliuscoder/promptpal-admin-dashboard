@@ -16,6 +16,7 @@ export default function AdminAnalyticsPage() {
   const [funnel, setFunnel] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
   const [refineChat, setRefineChat] = useState<any[]>([]);
+  const [refineAgent, setRefineAgent] = useState<{ timeSeries: any[]; summary: any } | null>(null);
   const [templateAdoption, setTemplateAdoption] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,17 +26,23 @@ export default function AdminAnalyticsPage() {
       try {
         setLoading(true);
         setError(null);
-        const [usageRes, funnelRes, modelRes, refineRes, templateRes] = await Promise.all([
+        const [usageRes, funnelRes, modelRes, refineRes, refineAgentRes, templateRes] = await Promise.all([
           adminService.getAnalyticsPromptUsage(30),
           adminService.getAnalyticsFunnel(),
           adminService.getAnalyticsModelDistribution(),
           adminService.getAnalyticsRefineChat(30),
+          adminService.getAnalyticsRefineAgent(30),
           adminService.getAnalyticsTemplateAdoption(),
         ]);
         setUsage(usageRes.data ?? []);
         setFunnel(funnelRes.data ?? []);
         setModels(modelRes.data ?? []);
         setRefineChat(Array.isArray(refineRes?.data) ? refineRes.data : []);
+        setRefineAgent(
+          refineAgentRes?.data && typeof refineAgentRes.data === "object" && "timeSeries" in refineAgentRes.data
+            ? { timeSeries: refineAgentRes.data.timeSeries ?? [], summary: refineAgentRes.data.summary ?? {} }
+            : null
+        );
         setTemplateAdoption(Array.isArray(templateRes?.data) ? templateRes.data : []);
       } catch (err) {
         console.error("Failed to load analytics", err);
@@ -129,6 +136,52 @@ export default function AdminAnalyticsPage() {
           </ResponsiveContainer>
         ) : (
           <EmptyState message="No Refine Chat usage data for the selected period" />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Refine Agent Usage (Last 30 Days)">
+        {refineAgent && (refineAgent.timeSeries?.length > 0 || (refineAgent.summary && (refineAgent.summary.totalSessions > 0 || refineAgent.summary.uniqueUsers > 0))) ? (
+          <div className="space-y-4">
+            {refineAgent.summary && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Sessions</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{refineAgent.summary.totalSessions ?? 0}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Unique Users</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{refineAgent.summary.uniqueUsers ?? 0}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Messages</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{refineAgent.summary.totalMessages ?? 0}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Avg Quality Score</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {refineAgent.summary.avgQualityScore != null ? refineAgent.summary.avgQualityScore : "—"}
+                  </p>
+                </div>
+              </div>
+            )}
+            {refineAgent.timeSeries && refineAgent.timeSeries.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={refineAgent.timeSeries}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="sessions" stroke="#8b5cf6" name="Sessions" />
+                  <Line type="monotone" dataKey="messages" stroke="#06b6d4" name="Messages" />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No time series data for the selected period.</p>
+            )}
+          </div>
+        ) : (
+          <EmptyState message="No Refine Agent usage data for the selected period" />
         )}
       </SectionCard>
 

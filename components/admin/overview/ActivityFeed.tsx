@@ -16,6 +16,11 @@ function formatTimestamp(createdAt: string): string {
   });
 }
 
+function getTypeLabel(type: string): string {
+  if (type === "refine_agent_session") return "Refine Agent";
+  return type.replace(/_/g, " ");
+}
+
 export default function ActivityFeed({ events }: { events: ActivityEvent[] }) {
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
@@ -42,7 +47,7 @@ export default function ActivityFeed({ events }: { events: ActivityEvent[] }) {
                   {event.label}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {event.type.replace(/_/g, " ")}
+                  {getTypeLabel(event.type)}
                 </p>
               </div>
               <time
