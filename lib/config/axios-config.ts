@@ -21,7 +21,12 @@ axios.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      if (typeof window !== "undefined") {
+      const data = error.response.data as { message?: string } | undefined;
+      const msg = data?.message ?? "";
+      const isAuthFailure =
+        msg === "Access denied. No token provided." ||
+        msg === "Invalid token.";
+      if (isAuthFailure && typeof window !== "undefined") {
         localStorage.removeItem("admin_token");
         localStorage.removeItem("admin_profile");
         if (!window.location.pathname.includes("/login")) {
