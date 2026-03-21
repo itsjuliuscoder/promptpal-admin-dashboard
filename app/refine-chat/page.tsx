@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { AxiosError } from "axios";
 import {
   LineChart,
   Line,
@@ -58,6 +59,14 @@ const DAYS_OPTIONS = [
 ];
 
 const PROVIDER_OPTIONS = ["", "OPENAI", "DEEPSEEK", "GEMINI", "CLAUDE", "OLLAMA"];
+
+function getAdminApiErrorMessage(err: unknown, fallback: string): string {
+  const ax = err as AxiosError<{ message?: string }>;
+  if (ax.response?.status === 401) {
+    return "Session expired or not signed in. Please sign in again.";
+  }
+  return fallback;
+}
 
 // ---- Helper ------------------------------------------------------------------
 
@@ -131,8 +140,10 @@ export default function RefineChatMonitorPage() {
     try {
       const res = await adminService.getRefineChatStats(days);
       setStats(res.data);
-    } catch {
-      setStatsError("Failed to load Refine Agent stats.");
+    } catch (err) {
+      setStatsError(
+        getAdminApiErrorMessage(err, "Failed to load Refine Agent stats.")
+      );
     } finally {
       setLoadingStats(false);
     }
@@ -154,8 +165,10 @@ export default function RefineChatMonitorPage() {
       setSessions(res.data.sessions);
       setTotalSessions(res.data.total);
       setPages(res.data.pages);
-    } catch {
-      setSessionsError("Failed to load sessions.");
+    } catch (err) {
+      setSessionsError(
+        getAdminApiErrorMessage(err, "Failed to load sessions.")
+      );
     } finally {
       setLoadingSessions(false);
     }

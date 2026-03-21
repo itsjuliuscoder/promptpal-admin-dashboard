@@ -119,10 +119,30 @@ export default function AcceptInvitationPage() {
       const response = await adminService.acceptInvitation(token, password);
       if (response.success && response.data) {
         setSuccess(true);
-        // Store token for auto-login
+        // Must match AdminAuthProvider + axios-config (`admin_token`, `admin_profile`)
         if (response.data.token) {
-          localStorage.setItem("adminToken", response.data.token);
+          localStorage.setItem("admin_token", response.data.token);
         }
+        if (response.data.admin) {
+          const a = response.data.admin as {
+            id: string;
+            username: string;
+            email: string;
+            role?: string;
+            permissions?: string[];
+          };
+          localStorage.setItem(
+            "admin_profile",
+            JSON.stringify({
+              id: String(a.id),
+              username: a.username,
+              email: a.email,
+              role: a.role ?? "admin",
+              permissions: a.permissions ?? [],
+            })
+          );
+        }
+        localStorage.removeItem("adminToken");
         // Redirect to admin dashboard after 2 seconds
         setTimeout(() => {
           router.push("/");
