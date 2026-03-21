@@ -132,7 +132,7 @@ export default function RefineChatMonitorPage() {
       const res = await adminService.getRefineChatStats(days);
       setStats(res.data);
     } catch {
-      setStatsError("Failed to load Refine Chat stats.");
+      setStatsError("Failed to load Refine Agent stats.");
     } finally {
       setLoadingStats(false);
     }
@@ -189,7 +189,7 @@ export default function RefineChatMonitorPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <PageHeader
-        title="Refine Chat Monitor"
+        title="Refine Agent monitor"
         description="Session volumes, quality scores, provider distribution, and recent activity"
         actions={
           <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">

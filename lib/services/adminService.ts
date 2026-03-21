@@ -1,7 +1,7 @@
 import axios from "@/lib/config/axios-config";
 
 // ---------------------------------------------------------------------------
-// Refine Chat Monitoring Types
+// Refine Agent monitoring types (admin /refine-chat API)
 // ---------------------------------------------------------------------------
 
 export interface RefineChatSummary {

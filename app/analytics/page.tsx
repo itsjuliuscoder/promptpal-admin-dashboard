@@ -121,7 +121,8 @@ export default function AdminAnalyticsPage() {
         )}
       </SectionCard>
 
-      <SectionCard title="Refine Chat Usage (Last 30 Days)">
+      {/* PromptSession-based counts (distinct from RefineAgentSession block below) */}
+      <SectionCard title="Refine Agent — prompt sessions (last 30 days)">
         {refineChat && refineChat.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={refineChat}>
@@ -130,16 +131,16 @@ export default function AdminAnalyticsPage() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="count" stroke="#8b5cf6" name="Refine Chat Sessions" />
+              <Line type="monotone" dataKey="count" stroke="#8b5cf6" name="Prompt sessions" />
               <Line type="monotone" dataKey="sessions" stroke="#06b6d4" name="Sessions" />
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <EmptyState message="No Refine Chat usage data for the selected period" />
+          <EmptyState message="No Refine Agent prompt session data for the selected period" />
         )}
       </SectionCard>
 
-      <SectionCard title="Refine Agent Usage (Last 30 Days)">
+      <SectionCard title="Refine Agent — structured sessions (last 30 days)">
         {refineAgent && (refineAgent.timeSeries?.length > 0 || (refineAgent.summary && (refineAgent.summary.totalSessions > 0 || refineAgent.summary.uniqueUsers > 0))) ? (
           <div className="space-y-4">
             {refineAgent.summary && (
@@ -181,7 +182,7 @@ export default function AdminAnalyticsPage() {
             )}
           </div>
         ) : (
-          <EmptyState message="No Refine Agent usage data for the selected period" />
+          <EmptyState message="No structured Refine Agent session data for the selected period" />
         )}
       </SectionCard>
 
