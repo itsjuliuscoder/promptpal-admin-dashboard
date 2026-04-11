@@ -21,8 +21,8 @@ export default function PromptPalAdminLogo({
       <Image
         src="/images/logo-dark.png"
         alt="PromptPal"
-        width={320}
-        height={82}
+        width={500}
+        height={200}
         className="h-20 w-auto max-w-[min(100%,320px)] object-contain object-center"
         priority={priority}
       />
