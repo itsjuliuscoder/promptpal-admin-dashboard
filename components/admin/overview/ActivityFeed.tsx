@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { FiActivity } from "react-icons/fi";
+import { FiActivity, FiArrowUpRight } from "react-icons/fi";
+import SectionCard from "@/components/shared/SectionCard";
 
 interface ActivityEvent {
   type: string;
@@ -23,43 +24,53 @@ function getTypeLabel(type: string): string {
 
 export default function ActivityFeed({ events }: { events: ActivityEvent[] }) {
   return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-        Recent Activity
-      </h3>
+    <SectionCard
+      eyebrow="Events"
+      title="Recent activity"
+      description="Live feed of the latest meaningful admin-facing events across the platform."
+    >
       {events.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-          <FiActivity className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" aria-hidden="true" />
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No recent activity</p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+        <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
+          <FiActivity className="mb-3 h-10 w-10 text-[color:var(--admin-text-faint)]" aria-hidden="true" />
+          <p className="text-sm font-medium text-[color:var(--admin-text)]">No recent activity</p>
+          <p className="mt-1 text-xs text-[color:var(--admin-text-faint)]">
             Events will appear here as they occur
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-200 dark:divide-gray-700" role="list">
+        <ul className="space-y-3" role="list">
           {events.map((event, index) => (
             <li
               key={`${event.type}-${index}`}
-              className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+              className="rounded-[1rem] border border-[color:var(--admin-border)] bg-[color:var(--admin-panel-muted)] px-4 py-4"
             >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                  {event.label}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {getTypeLabel(event.type)}
-                </p>
+              <div className="flex items-start gap-3">
+                <div className="mt-1 rounded-full bg-[color:var(--admin-accent-soft)] p-2 text-[color:var(--admin-accent-strong)]">
+                  <FiArrowUpRight size={14} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[color:var(--admin-text)]">
+                        {event.label}
+                      </p>
+                      <p className="mt-1 text-xs font-medium uppercase tracking-[0.14em] text-[color:var(--admin-text-faint)]">
+                        {getTypeLabel(event.type)}
+                      </p>
+                    </div>
+                    <time
+                      dateTime={event.createdAt}
+                      className="shrink-0 text-xs text-[color:var(--admin-text-soft)]"
+                    >
+                      {formatTimestamp(event.createdAt)}
+                    </time>
+                  </div>
+                </div>
               </div>
-              <time
-                dateTime={event.createdAt}
-                className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0"
-              >
-                {formatTimestamp(event.createdAt)}
-              </time>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </SectionCard>
   );
 }

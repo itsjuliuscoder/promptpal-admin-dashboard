@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { FiRefreshCw, FiRotateCcw, FiSearch } from "react-icons/fi";
 import { adminService } from "@/lib/services/adminService";
 import DataTable from "@/components/shared/DataTable";
 import FilterBar from "@/components/shared/FilterBar";
 import StatusBadge from "@/components/shared/StatusBadge";
 import Pagination from "@/components/shared/Pagination";
 import PageHeader from "@/components/shared/PageHeader";
-import LoadingSkeleton, { TableSkeleton } from "@/components/shared/LoadingSkeleton";
+import { TableSkeleton } from "@/components/shared/LoadingSkeleton";
 import ErrorState from "@/components/shared/ErrorState";
-import Link from "next/link";
 
 interface UserRow {
   _id: string;
@@ -32,8 +33,14 @@ interface FilterParams {
   dateTo?: string;
 }
 
-const selectClass =
-  "border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-200";
+function formatDate(value?: string) {
+  if (!value) return "Never";
+  return new Date(value).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
+function formatSource(value?: string) {
+  return (value || "local").replace("_", " ");
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -105,80 +112,141 @@ export default function AdminUsersPage() {
     loadUsers(page);
   };
 
+  const visibleStats = useMemo(() => {
+    const active = users.filter((user) => !user.blocked).length;
+    const blocked = users.filter((user) => user.blocked).length;
+    const pendingOnboarding = users.filter((user) => !user.onboardingCompleted).length;
+    return { active, blocked, pendingOnboarding };
+  }, [users]);
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="admin-page space-y-6">
       <PageHeader
+        eyebrow="Operations"
         title="Users"
-        description="Manage and monitor all PromptPal users"
+        description="Monitor account health, lifecycle status, and recent access patterns across PromptPal."
+        metadata={
+          <>
+            <span className="admin-stat-pill">Page {pagination?.page || 1}</span>
+            <span className="admin-stat-pill">{pagination?.total || users.length} total users</span>
+          </>
+        }
+        actions={
+          <button
+            className="admin-button admin-button-secondary"
+            onClick={() => loadUsers(currentPage)}
+          >
+            <FiRefreshCw size={16} />
+            Refresh
+          </button>
+        }
       />
-      <FilterBar>
-        <input
-          className={selectClass}
-          placeholder="Search name or email"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") handleSearch();
-          }}
-        />
-        <select
-          className={selectClass}
-          value={planFilter}
-          onChange={(e) => setPlanFilter(e.target.value)}
-        >
-          <option value="">All Plans</option>
-          <option value="free">Free</option>
-          <option value="starter">Starter</option>
-          <option value="pro">Pro</option>
-          <option value="team_starter">Team Starter</option>
-          <option value="team_pro">Team Pro</option>
-          <option value="trial">Trial</option>
-        </select>
-        <select
-          className={selectClass}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <option value="">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="blocked">Blocked</option>
-        </select>
-        <select
-          className={selectClass}
-          value={onboardingFilter}
-          onChange={(e) => setOnboardingFilter(e.target.value)}
-        >
-          <option value="">All Onboarding</option>
-          <option value="completed">Completed</option>
-          <option value="pending">Pending</option>
-        </select>
-        <input
-          type="date"
-          className={selectClass}
-          title="Signup date from"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-        />
-        <input
-          type="date"
-          className={selectClass}
-          title="Signup date to"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-        />
-        <button
-          className="bg-[#A84C34] text-white px-4 py-2 rounded-lg text-sm"
-          onClick={handleSearch}
-        >
-          Search
-        </button>
-        <button
-          className="border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
-          onClick={handleReset}
-        >
-          Reset
-        </button>
-      </FilterBar>
+
+      <FilterBar
+        searchSlot={
+          <>
+            <div className="grid gap-2">
+              <label className="admin-eyebrow" htmlFor="user-search">
+                Search users
+              </label>
+              <input
+                id="user-search"
+                className="admin-input"
+                placeholder="Search by name or email"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleSearch();
+                }}
+              />
+            </div>
+          </>
+        }
+        filterSlot={
+          <>
+            <select
+              className="admin-select"
+              value={planFilter}
+              onChange={(e) => setPlanFilter(e.target.value)}
+            >
+              <option value="">All plans</option>
+              <option value="free">Free</option>
+              <option value="starter">Starter</option>
+              <option value="pro">Pro</option>
+              <option value="team_starter">Team Starter</option>
+              <option value="team_pro">Team Pro</option>
+              <option value="trial">Trial</option>
+            </select>
+            <select
+              className="admin-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="blocked">Blocked</option>
+            </select>
+            <select
+              className="admin-select"
+              value={onboardingFilter}
+              onChange={(e) => setOnboardingFilter(e.target.value)}
+            >
+              <option value="">All onboarding</option>
+              <option value="completed">Completed</option>
+              <option value="pending">Pending</option>
+            </select>
+            <input
+              type="date"
+              className="admin-input"
+              title="Signup date from"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+            <input
+              type="date"
+              className="admin-input"
+              title="Signup date to"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </>
+        }
+        actionSlot={
+          <>
+            <button className="admin-button admin-button-primary" onClick={handleSearch}>
+              <FiSearch size={16} />
+              Search
+            </button>
+            <button className="admin-button admin-button-ghost" onClick={handleReset}>
+              <FiRotateCcw size={16} />
+              Reset
+            </button>
+          </>
+        }
+      />
+
+      <section className="admin-summary-strip">
+        <div className="admin-summary-item">
+          <p className="admin-summary-label">Total users</p>
+          <p className="admin-summary-value">{pagination?.total || users.length}</p>
+          <p className="admin-summary-hint">Registered accounts in PromptPal</p>
+        </div>
+        <div className="admin-summary-item">
+          <p className="admin-summary-label">Visible active</p>
+          <p className="admin-summary-value">{visibleStats.active}</p>
+          <p className="admin-summary-hint">Users not currently blocked</p>
+        </div>
+        <div className="admin-summary-item">
+          <p className="admin-summary-label">Visible blocked</p>
+          <p className="admin-summary-value">{visibleStats.blocked}</p>
+          <p className="admin-summary-hint">Flagged on this page of results</p>
+        </div>
+        <div className="admin-summary-item">
+          <p className="admin-summary-label">Pending onboarding</p>
+          <p className="admin-summary-value">{visibleStats.pendingOnboarding}</p>
+          <p className="admin-summary-hint">Users still incomplete on onboarding</p>
+        </div>
+      </section>
 
       {loading ? (
         <TableSkeleton rows={10} columns={7} />
@@ -188,37 +256,68 @@ export default function AdminUsersPage() {
         <>
           <DataTable
             rows={users}
+            rowKey={(row) => row._id}
+            emptyTitle="No users found"
+            emptyMessage="Try adjusting your filters or search query."
+            mobileCardTitle={(row) => (
+              <Link className="text-[color:var(--admin-text)] hover:text-[color:var(--admin-accent-strong)]" href={`/users/${row._id}`}>
+                {row.name || "Unnamed"}
+              </Link>
+            )}
+            mobileCardMeta={(row) => row.email}
+            mobileCardFooter={(row) => (
+              <StatusBadge label={row.blocked ? "Blocked" : "Active"} variant={row.blocked ? "error" : "success"} size="sm" />
+            )}
             columns={[
               {
                 key: "name",
                 label: "Name",
+                emphasize: true,
+                width: "22%",
                 render: (value, row) => (
-                  <Link className="text-[#A84C34]" href={`/users/${row._id}`}>
+                  <Link
+                    className="font-semibold text-[color:var(--admin-text)] transition-colors hover:text-[color:var(--admin-accent-strong)]"
+                    href={`/users/${row._id}`}
+                  >
                     {value || "Unnamed"}
                   </Link>
                 ),
               },
-              { key: "email", label: "Email" },
+              {
+                key: "email",
+                label: "Email",
+                truncate: true,
+                width: "24%",
+              },
               {
                 key: "subscriptionStatus",
                 label: "Plan",
-                render: (value) => value || "free",
+                width: "12%",
+                render: (value) => <StatusBadge label={value || "free"} variant="info" />,
               },
               {
                 key: "authProvider",
-                label: "Signup Source",
-                render: (value) => value || "local",
+                label: "Source",
+                width: "12%",
+                render: (value) => (
+                  <span className="capitalize">{formatSource(value)}</span>
+                ),
               },
               {
                 key: "blocked",
                 label: "Status",
+                width: "12%",
                 render: (value) => (
-                  <StatusBadge label={value ? "Blocked" : "Active"} />
+                  <StatusBadge
+                    label={value ? "Blocked" : "Active"}
+                    variant={value ? "error" : "success"}
+                  />
                 ),
               },
               {
                 key: "onboardingCompleted",
                 label: "Onboarding",
+                width: "12%",
                 render: (value) => (
                   <StatusBadge
                     label={value ? "Completed" : "Pending"}
@@ -229,16 +328,13 @@ export default function AdminUsersPage() {
               {
                 key: "lastLoginAt",
                 label: "Last login",
-                render: (value) =>
-                  value
-                    ? new Date(value).toLocaleDateString(undefined, {
-                        dateStyle: "medium",
-                      })
-                    : "Never",
+                align: "right",
+                width: "16%",
+                render: (value) => formatDate(value),
               },
             ]}
           />
-          {pagination && (
+          {pagination ? (
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
@@ -246,7 +342,7 @@ export default function AdminUsersPage() {
               itemsPerPage={itemsPerPage}
               onPageChange={handlePageChange}
             />
-          )}
+          ) : null}
         </>
       )}
     </div>

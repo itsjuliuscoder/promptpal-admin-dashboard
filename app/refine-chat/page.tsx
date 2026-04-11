@@ -1,517 +1,507 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { AxiosError } from "axios";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  RadarChart,
-  Radar,
-  PolarGrid,
-  PolarAngleAxis,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+  FiActivity,
+  FiBarChart2,
+  FiDownload,
+  FiMessageSquare,
+  FiRefreshCw,
+  FiSettings,
+  FiSliders,
+} from "react-icons/fi";
 import PageHeader from "@/components/shared/PageHeader";
-import SectionCard from "@/components/shared/SectionCard";
-import { CardSkeleton } from "@/components/shared/LoadingSkeleton";
 import ErrorState from "@/components/shared/ErrorState";
-import EmptyState from "@/components/shared/EmptyState";
+import SectionCard from "@/components/shared/SectionCard";
+import DataTable from "@/components/shared/DataTable";
+import Pagination from "@/components/shared/Pagination";
+import { CardSkeleton, TableSkeleton } from "@/components/shared/LoadingSkeleton";
+import StatusBadge from "@/components/shared/StatusBadge";
+import SectionWorkspace, { WorkspaceSectionItem } from "@/components/shared/SectionWorkspace";
+import { MetricTile, PreviewNotice, ToggleCard } from "@/components/shared/AdminWidgets";
+import { useSectionQueryState } from "@/lib/hooks/useSectionQueryState";
 import {
   adminService,
-  RefineChatStatsData,
   RefineChatSession,
+  RefineChatStatsData,
 } from "@/lib/services/adminService";
-import { FiMessageSquare, FiUsers, FiStar, FiActivity, FiSun, FiRepeat } from "react-icons/fi";
 
-// ---- Constants ---------------------------------------------------------------
-
-const PROVIDER_COLORS: Record<string, string> = {
-  OPENAI: "#10b981",
-  DEEPSEEK: "#6366f1",
-  GEMINI: "#f59e0b",
-  CLAUDE: "#A84C34",
-  OLLAMA: "#64748b",
-};
-
-const PLAN_COLORS: Record<string, string> = {
-  free: "#94a3b8",
-  starter: "#3b82f6",
-  pro: "#8b5cf6",
-  team_starter: "#10b981",
-  team_pro: "#A84C34",
-};
-
-const DAYS_OPTIONS = [
-  { label: "7d", value: 7 },
-  { label: "30d", value: 30 },
-  { label: "90d", value: 90 },
+const SECTION_ITEMS: WorkspaceSectionItem[] = [
+  { id: "overview", label: "Overview", icon: <FiBarChart2 size={18} /> },
+  { id: "sessions", label: "Sessions", icon: <FiMessageSquare size={18} /> },
+  { id: "config", label: "Configuration", icon: <FiSettings size={18} /> },
+  { id: "prompts", label: "System prompts", icon: <FiSliders size={18} /> },
 ];
 
-const PROVIDER_OPTIONS = ["", "OPENAI", "DEEPSEEK", "GEMINI", "CLAUDE", "OLLAMA"];
-
-function getAdminApiErrorMessage(err: unknown, fallback: string): string {
-  const ax = err as AxiosError<{ message?: string }>;
-  if (ax.response?.status === 401) {
-    return "Session expired or not signed in. Please sign in again.";
-  }
-  return fallback;
-}
-
-// ---- Helper ------------------------------------------------------------------
-
-function qualityColor(score: number | null): string {
-  if (score == null) return "text-gray-400 dark:text-gray-500";
-  if (score >= 70) return "text-emerald-600 dark:text-emerald-400";
-  if (score >= 40) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
-}
-
-function qualityBg(score: number | null): string {
-  if (score == null) return "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
-  if (score >= 70) return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
-  if (score >= 40) return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-  return "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-}
-
-// ---- KPI Card ----------------------------------------------------------------
-
-function KpiCard({
-  icon,
-  label,
-  value,
-  sub,
-  colorClass,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  sub?: string;
-  colorClass?: string;
-}) {
-  return (
-    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 flex flex-col gap-3">
-      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm font-medium">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className={`text-3xl font-bold ${colorClass ?? "text-gray-900 dark:text-white"}`}>
-        {value}
-      </div>
-      {sub && <div className="text-xs text-gray-400 dark:text-gray-500">{sub}</div>}
-    </div>
-  );
-}
-
-// ---- Main Page ---------------------------------------------------------------
+const DEFAULT_PROMPT = `You are an expert prompt engineer. Your job is to improve the user's prompt to make it clearer, more specific, and more effective for the chosen AI model while preserving the user's intent.`;
 
 export default function RefineChatMonitorPage() {
-  const router = useRouter();
+  const sectionIds = useMemo(() => SECTION_ITEMS.map((item) => item.id), []);
+  const { activeSection, setActiveSection } = useSectionQueryState(sectionIds, "overview");
 
-  // --- state ---
-  const [days, setDays] = useState(30);
   const [stats, setStats] = useState<RefineChatStatsData | null>(null);
   const [sessions, setSessions] = useState<RefineChatSession[]>([]);
   const [totalSessions, setTotalSessions] = useState(0);
-  const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
-  const [filterProvider, setFilterProvider] = useState("");
-  const [filterMinQuality, setFilterMinQuality] = useState("");
+  const [page, setPage] = useState(1);
+  const [provider, setProvider] = useState("");
+  const [minQuality, setMinQuality] = useState("");
   const [sort, setSort] = useState("createdAt");
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
 
-  // --- fetch stats ---
-  const fetchStats = useCallback(async () => {
-    setLoadingStats(true);
-    setStatsError(null);
+  const [configPreview, setConfigPreview] = useState({
+    model: "claude-sonnet-4-6",
+    maxRounds: "3",
+    sessionTimeout: "30",
+    enabled: true,
+    showOnboarding: false,
+    planAware: true,
+  });
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
+
+  const fetchStats = async () => {
     try {
-      const res = await adminService.getRefineChatStats(days);
-      setStats(res.data);
-    } catch (err) {
-      setStatsError(
-        getAdminApiErrorMessage(err, "Failed to load Refine Agent stats.")
-      );
+      setLoadingStats(true);
+      setStatsError(null);
+      const response = await adminService.getRefineChatStats(30);
+      setStats(response.data);
+    } catch (error) {
+      console.error("Failed to load refine stats", error);
+      setStatsError("Failed to load Refine Agent stats.");
     } finally {
       setLoadingStats(false);
     }
-  }, [days]);
+  };
 
-  // --- fetch sessions ---
-  const fetchSessions = useCallback(async () => {
-    setLoadingSessions(true);
-    setSessionsError(null);
+  const fetchSessions = async () => {
     try {
-      const res = await adminService.getRefineChatSessions({
+      setLoadingSessions(true);
+      setSessionsError(null);
+      const response = await adminService.getRefineChatSessions({
         page,
-        limit: 20,
-        provider: filterProvider || undefined,
-        minQuality: filterMinQuality ? Number(filterMinQuality) : undefined,
-        days,
+        limit: 10,
+        provider: provider || undefined,
+        minQuality: minQuality ? Number(minQuality) : undefined,
         sort,
+        days: 30,
       });
-      setSessions(res.data.sessions);
-      setTotalSessions(res.data.total);
-      setPages(res.data.pages);
-    } catch (err) {
-      setSessionsError(
-        getAdminApiErrorMessage(err, "Failed to load sessions.")
-      );
+      setSessions(response.data.sessions);
+      setTotalSessions(response.data.total);
+      setPages(response.data.pages);
+    } catch (error) {
+      console.error("Failed to load refine sessions", error);
+      setSessionsError("Failed to load Refine Agent sessions.");
     } finally {
       setLoadingSessions(false);
     }
-  }, [days, page, filterProvider, filterMinQuality, sort]);
+  };
 
   useEffect(() => {
     fetchStats();
-  }, [fetchStats]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [days, filterProvider, filterMinQuality, sort]);
+  }, []);
 
   useEffect(() => {
     fetchSessions();
-  }, [fetchSessions]);
+  }, [page, provider, minQuality, sort]);
 
-  // --- radar data ---
-  const radarData = stats
-    ? [
-        { metric: "Clarity", value: stats.qualityBreakdown.clarity ?? 0 },
-        { metric: "Specificity", value: stats.qualityBreakdown.specificity ?? 0 },
-        { metric: "Completeness", value: stats.qualityBreakdown.completeness ?? 0 },
-        { metric: "Reusability", value: stats.qualityBreakdown.reusability ?? 0 },
-      ]
-    : [];
+  const topProviders = useMemo(() => {
+    return [...(stats?.byProvider || [])]
+      .sort((a, b) => b.sessions - a.sessions)
+      .slice(0, 3);
+  }, [stats]);
 
-  // ---- render ----------------------------------------------------------------
+  const insightCopy = useMemo(() => {
+    if (!stats) return "Refine Agent metrics are loading.";
+    if (stats.summary.totalSessions === 0) {
+      return "Refine Agent has 0 sessions in the last 30 days. This is a retention-sensitive workflow, so onboarding visibility and default entry points should be reviewed.";
+    }
+    if ((stats.summary.avgQualityScore || 0) < 50) {
+      return "Usage is present, but quality is trending low. Review system prompts and provider configuration before driving more traffic into the feature.";
+    }
+    return "Refine Agent is receiving traffic with usable quality scores. Focus next on provider mix and session depth to improve the outcome rate.";
+  }, [stats]);
+
+  const refreshActive = () => {
+    if (activeSection === "sessions") {
+      fetchSessions();
+      return;
+    }
+    fetchStats();
+  };
+
+  if (loadingStats && activeSection === "overview") {
+    return (
+      <div className="admin-page space-y-6">
+        <PageHeader
+          eyebrow="Operations"
+          title="Refine Agent"
+          description="Usage metrics, sessions, and admin-level configuration surfaces for prompt refinement."
+        />
+        <div className="admin-workspace">
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
+    <div className="admin-page space-y-6">
       <PageHeader
-        title="Refine Agent monitor"
-        description="Session volumes, quality scores, provider distribution, and recent activity"
+        eyebrow="Operations"
+        title="Refine Agent"
+        description="Usage metrics, sessions, and admin-level configuration surfaces for prompt refinement."
         actions={
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            {DAYS_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setDays(opt.value)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  days === opt.value
-                    ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <>
+            <button type="button" className="admin-button admin-button-secondary" onClick={refreshActive}>
+              <FiRefreshCw size={16} />
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="admin-button admin-button-secondary"
+              onClick={() => downloadJson("refine-agent-export.json", { stats, sessions })}
+            >
+              <FiDownload size={16} />
+              Export data
+            </button>
+          </>
         }
       />
 
-      {/* KPI Cards */}
-      {loadingStats ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 h-32 animate-pulse" />
-          ))}
-        </div>
-      ) : statsError ? (
-        <ErrorState message={statsError} onRetry={fetchStats} />
-      ) : stats ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <KpiCard
-            icon={<FiMessageSquare size={16} />}
-            label="Total Sessions"
-            value={stats.summary.totalSessions.toLocaleString()}
-            sub={`Last ${days} days`}
-          />
-          <KpiCard
-            icon={<FiUsers size={16} />}
-            label="Unique Users"
-            value={stats.summary.uniqueUsers.toLocaleString()}
-            sub={`Last ${days} days`}
-          />
-          <KpiCard
-            icon={<FiStar size={16} />}
-            label="Avg Quality Score"
-            value={stats.summary.avgQualityScore != null ? `${stats.summary.avgQualityScore}` : "—"}
-            sub="Out of 100"
-            colorClass={qualityColor(stats.summary.avgQualityScore)}
-          />
-          <KpiCard
-            icon={<FiActivity size={16} />}
-            label="Avg Messages / Session"
-            value={stats.summary.avgMessagesPerSession != null ? stats.summary.avgMessagesPerSession : "—"}
-            sub="Avg conversation depth"
-          />
-          <KpiCard
-            icon={<FiSun size={16} />}
-            label="Sessions Today"
-            value={stats.summary.sessionsToday.toLocaleString()}
-            sub="Since midnight UTC"
-          />
-          <KpiCard
-            icon={<FiRepeat size={16} />}
-            label="Total Refinements"
-            value={stats.summary.totalRefinements.toLocaleString()}
-            sub={`Last ${days} days`}
-          />
-        </div>
-      ) : null}
-
-      {/* Trend Chart */}
-      {stats && (
-        <SectionCard title={`Sessions & Messages Over Time (Last ${days} Days)`}>
-          {stats.timeSeries.length === 0 ? (
-            <EmptyState message="No session data for this period." />
-          ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={stats.timeSeries} margin={{ top: 4, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="sessions" stroke="#A84C34" strokeWidth={2} dot={false} name="Sessions" />
-                <Line type="monotone" dataKey="messages" stroke="#6366f1" strokeWidth={2} dot={false} name="Messages" />
-                <Line type="monotone" dataKey="uniqueUsers" stroke="#10b981" strokeWidth={2} dot={false} name="Unique Users" />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </SectionCard>
-      )}
-
-      {/* Three-column grid */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Quality Breakdown Radar */}
-          <SectionCard title="Quality Breakdown">
-            {radarData.every((d) => d.value === 0) ? (
-              <EmptyState message="No quality data yet." />
-            ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <RadarChart data={radarData}>
-                  <PolarGrid stroke="#e5e7eb" />
-                  <PolarAngleAxis dataKey="metric" tick={{ fontSize: 12 }} />
-                  <Radar name="Avg Score" dataKey="value" stroke="#A84C34" fill="#A84C34" fillOpacity={0.3} />
-                  <Tooltip formatter={(v: number) => v.toFixed(1)} />
-                </RadarChart>
-              </ResponsiveContainer>
-            )}
-          </SectionCard>
-
-          {/* Provider Distribution Pie */}
-          <SectionCard title="Provider Distribution">
-            {stats.byProvider.length === 0 ? (
-              <EmptyState message="No provider data yet." />
-            ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie
-                    data={stats.byProvider}
-                    dataKey="sessions"
-                    nameKey="provider"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({ provider, percent }) =>
-                      `${provider} ${(percent * 100).toFixed(0)}%`
-                    }
-                  >
-                    {stats.byProvider.map((entry) => (
-                      <Cell
-                        key={entry.provider}
-                        fill={PROVIDER_COLORS[entry.provider] ?? "#94a3b8"}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => `${v} sessions`} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </SectionCard>
-
-          {/* Plan Distribution Bar */}
-          <SectionCard title="Plan Distribution">
-            {stats.byPlan.length === 0 ? (
-              <EmptyState message="No plan data yet." />
-            ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={stats.byPlan} layout="vertical" margin={{ left: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="plan" tick={{ fontSize: 12 }} width={90} />
-                  <Tooltip />
-                  <Bar dataKey="sessions" name="Sessions" radius={[0, 4, 4, 0]}>
-                    {stats.byPlan.map((entry) => (
-                      <Cell
-                        key={entry.plan}
-                        fill={PLAN_COLORS[entry.plan] ?? "#94a3b8"}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </SectionCard>
-        </div>
-      )}
-
-      {/* Sessions Table */}
-      <SectionCard
-        title="Recent Sessions"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={filterProvider}
-              onChange={(e) => setFilterProvider(e.target.value)}
-              className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#A84C34]"
-            >
-              <option value="">All Providers</option>
-              {PROVIDER_OPTIONS.filter(Boolean).map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              placeholder="Min quality"
-              value={filterMinQuality}
-              onChange={(e) => setFilterMinQuality(e.target.value)}
-              className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 w-32 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#A84C34]"
-            />
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[#A84C34]"
-            >
-              <option value="createdAt">Sort: Newest</option>
-              <option value="qualityScore">Sort: Quality</option>
-              <option value="messageCount">Sort: Messages</option>
-            </select>
-          </div>
-        }
+      <SectionWorkspace
+        sections={SECTION_ITEMS}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        sectionLabel="Refine Agent sections"
       >
-        {loadingSessions ? (
-          <CardSkeleton />
-        ) : sessionsError ? (
-          <ErrorState message={sessionsError} onRetry={fetchSessions} />
-        ) : sessions.length === 0 ? (
-          <EmptyState message="No sessions match the current filters." />
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-800 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    <th className="py-3 pr-4">User</th>
-                    <th className="py-3 pr-4">Provider</th>
-                    <th className="py-3 pr-4">Quality</th>
-                    <th className="py-3 pr-4">Messages</th>
-                    <th className="py-3 pr-4">Refinements</th>
-                    <th className="py-3">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50 dark:divide-gray-800/60">
-                  {sessions.map((s) => (
-                    <tr
-                      key={s.sessionId as string}
-                      onClick={() => s.userId && router.push(`/users/${s.userId}`)}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
-                    >
-                      <td className="py-3 pr-4">
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {s.userName || "Unknown"}
-                        </div>
-                        <div className="text-xs text-gray-400 dark:text-gray-500">{s.userEmail}</div>
-                      </td>
-                      <td className="py-3 pr-4">
-                        {s.provider ? (
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                            style={{
-                              backgroundColor: `${PROVIDER_COLORS[s.provider] ?? "#94a3b8"}20`,
-                              color: PROVIDER_COLORS[s.provider] ?? "#94a3b8",
-                            }}
-                          >
-                            {s.provider}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4">
-                        {s.qualityScore != null ? (
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${qualityBg(s.qualityScore)}`}
-                          >
-                            {s.qualityScore}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 pr-4 text-gray-700 dark:text-gray-300">{s.messageCount}</td>
-                      <td className="py-3 pr-4 text-gray-700 dark:text-gray-300">{s.totalRefinements}</td>
-                      <td className="py-3 text-gray-500 dark:text-gray-400 text-xs whitespace-nowrap">
-                        {new Date(s.createdAt).toLocaleDateString(undefined, {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        {activeSection === "overview" ? (
+          statsError ? (
+            <ErrorState message={statsError} onRetry={fetchStats} />
+          ) : loadingStats ? (
+            <CardSkeleton />
+          ) : stats ? (
+            <div className="space-y-6">
+              <div className="admin-metric-grid">
+                <MetricTile label="Total sessions" value={stats.summary.totalSessions} note="Last 30 days" />
+                <MetricTile label="Sessions (30d)" value={stats.summary.totalSessions} note={`${stats.summary.sessionsToday} sessions today`} />
+                <MetricTile label="Success rate" value={stats.summary.avgQualityScore != null ? `${stats.summary.avgQualityScore}%` : "Unknown"} note="Average quality score" />
+                <MetricTile label="Unique users" value={stats.summary.uniqueUsers} note="Users who triggered refinement in the selected window" />
+              </div>
 
-            {/* Pagination */}
-            {pages > 1 && (
-              <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-800 mt-4">
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {totalSessions} session{totalSessions !== 1 ? "s" : ""} total
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                    className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              <SectionCard
+                title="Refine Agent overview"
+                description="Operational summary for the prompt refinement feature."
+              >
+                <div className="space-y-6">
+                  <div className="rounded-[1rem] border border-[color:var(--admin-warning)]/20 bg-[color:var(--admin-warning-soft)] px-5 py-4 text-[color:var(--admin-text)]">
+                    <p className="text-lg font-medium leading-8">{insightCopy}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-semibold tracking-[-0.03em] text-[color:var(--admin-text)]">
+                      Top provider signals (30d)
+                    </h3>
+                    {topProviders.length === 0 ? (
+                      <PreviewNotice message="No provider distribution data has been returned for this period." />
+                    ) : (
+                      topProviders.map((item) => {
+                        const max = topProviders[0]?.sessions || 1;
+                        const width = Math.max(12, Math.round((item.sessions / max) * 100));
+                        return (
+                          <div key={item.provider} className="grid gap-2 md:grid-cols-[180px_minmax(0,1fr)_60px] md:items-center">
+                            <span className="text-lg font-medium text-[color:var(--admin-text)]">
+                              {item.provider}
+                            </span>
+                            <div className="h-3 overflow-hidden rounded-full bg-[color:var(--admin-panel-muted)]">
+                              <div
+                                className="h-full rounded-full bg-[color:var(--admin-accent)]"
+                                style={{ width: `${width}%` }}
+                              />
+                            </div>
+                            <span className="text-right text-lg font-semibold text-[color:var(--admin-text)]">
+                              {item.sessions}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+          ) : null
+        ) : null}
+
+        {activeSection === "sessions" ? (
+          <SectionCard
+            title="Refine Agent sessions"
+            description="Recent refinement sessions with provider, quality, and session depth."
+          >
+            <div className="space-y-5">
+              <div className="admin-toolbar">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,0.8fr)]">
+                  <select
+                    className="admin-select"
+                    value={provider}
+                    onChange={(event) => {
+                      setPage(1);
+                      setProvider(event.target.value);
+                    }}
                   >
-                    Previous
-                  </button>
-                  <span className="text-sm text-gray-600 dark:text-gray-300">
-                    {page} / {pages}
-                  </span>
-                  <button
-                    disabled={page >= pages}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    <option value="">All providers</option>
+                    {stats?.byProvider.map((item) => (
+                      <option key={item.provider} value={item.provider}>
+                        {item.provider}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="admin-input"
+                    placeholder="Minimum quality score"
+                    value={minQuality}
+                    onChange={(event) => {
+                      setPage(1);
+                      setMinQuality(event.target.value);
+                    }}
+                  />
+                  <select
+                    className="admin-select"
+                    value={sort}
+                    onChange={(event) => {
+                      setPage(1);
+                      setSort(event.target.value);
+                    }}
                   >
-                    Next
-                  </button>
+                    <option value="createdAt">Newest first</option>
+                    <option value="qualityScore">Highest quality</option>
+                    <option value="messageCount">Most messages</option>
+                  </select>
                 </div>
               </div>
-            )}
-          </>
-        )}
-      </SectionCard>
+
+              {loadingSessions ? (
+                <TableSkeleton rows={6} columns={6} />
+              ) : sessionsError ? (
+                <ErrorState message={sessionsError} onRetry={fetchSessions} />
+              ) : (
+                <>
+                  <DataTable
+                    rows={sessions}
+                    rowKey={(row) => row.sessionId}
+                    mobileCardTitle={(row) => row.userName || "Unknown"}
+                    mobileCardMeta={(row) => row.userEmail}
+                    mobileCardFooter={(row) => (
+                      <StatusBadge
+                        label={row.qualityScore != null ? `${row.qualityScore}` : "Unknown"}
+                        variant={row.qualityScore != null && row.qualityScore >= 70 ? "success" : "warning"}
+                        size="sm"
+                      />
+                    )}
+                    columns={[
+                      {
+                        key: "userName",
+                        label: "User",
+                        emphasize: true,
+                        render: (value, row) => (
+                          <div>
+                            <div className="font-semibold text-[color:var(--admin-text)]">{value}</div>
+                            <div className="text-xs text-[color:var(--admin-text-faint)]">{row.userEmail}</div>
+                          </div>
+                        ),
+                      },
+                      { key: "provider", label: "Provider" },
+                      {
+                        key: "qualityScore",
+                        label: "Quality",
+                        render: (value) =>
+                          value != null ? (
+                            <StatusBadge
+                              label={`${value}`}
+                              variant={value >= 70 ? "success" : value >= 40 ? "warning" : "error"}
+                            />
+                          ) : (
+                            <span className="text-[color:var(--admin-text-faint)]">Unknown</span>
+                          ),
+                      },
+                      { key: "messageCount", label: "Messages", align: "right" },
+                      { key: "totalRefinements", label: "Refinements", align: "right" },
+                      {
+                        key: "createdAt",
+                        label: "Created",
+                        render: (value) => formatDate(value),
+                      },
+                    ]}
+                  />
+
+                  {pages > 1 ? (
+                    <Pagination
+                      currentPage={page}
+                      totalPages={pages}
+                      totalItems={totalSessions}
+                      itemsPerPage={10}
+                      onPageChange={setPage}
+                    />
+                  ) : null}
+                </>
+              )}
+            </div>
+          </SectionCard>
+        ) : null}
+
+        {activeSection === "config" ? (
+          <SectionCard
+            title="Agent configuration"
+            description="Control how Refine Agent behaves across the platform."
+          >
+            <div className="space-y-6">
+              <PreviewNotice message="The current admin API does not expose persistence for Refine Agent configuration yet. These controls are rendered for review only." />
+
+              <div className="admin-field-grid">
+                <div className="admin-field-stack md:col-span-2">
+                  <label className="admin-field-label" htmlFor="refine-model">
+                    AI model
+                  </label>
+                  <select
+                    id="refine-model"
+                    className="admin-select"
+                    value={configPreview.model}
+                    onChange={(event) =>
+                      setConfigPreview((current) => ({ ...current, model: event.target.value }))
+                    }
+                  >
+                    <option value="claude-sonnet-4-6">claude-sonnet-4-6 (recommended)</option>
+                    <option value="gpt-4o">gpt-4o</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+                  </select>
+                </div>
+
+                <div className="admin-field-stack">
+                  <label className="admin-field-label" htmlFor="max-rounds">
+                    Max refinement rounds per session
+                  </label>
+                  <input
+                    id="max-rounds"
+                    className="admin-input"
+                    value={configPreview.maxRounds}
+                    onChange={(event) =>
+                      setConfigPreview((current) => ({ ...current, maxRounds: event.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="admin-field-stack">
+                  <label className="admin-field-label" htmlFor="session-timeout">
+                    Session timeout (minutes)
+                  </label>
+                  <input
+                    id="session-timeout"
+                    className="admin-input"
+                    value={configPreview.sessionTimeout}
+                    onChange={(event) =>
+                      setConfigPreview((current) => ({ ...current, sessionTimeout: event.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <ToggleCard
+                  title="Refine Agent enabled"
+                  description="Enable the Refine Agent feature for all users."
+                  checked={configPreview.enabled}
+                  onChange={(checked) =>
+                    setConfigPreview((current) => ({ ...current, enabled: checked }))
+                  }
+                />
+                <ToggleCard
+                  title="Show Refine Agent on onboarding"
+                  description="Surface refinement as the first action for new users."
+                  checked={configPreview.showOnboarding}
+                  onChange={(checked) =>
+                    setConfigPreview((current) => ({ ...current, showOnboarding: checked }))
+                  }
+                />
+                <ToggleCard
+                  title="Plan-aware enforcement"
+                  description="Limit free users to a bounded number of refinements each month."
+                  checked={configPreview.planAware}
+                  onChange={(checked) =>
+                    setConfigPreview((current) => ({ ...current, planAware: checked }))
+                  }
+                />
+              </div>
+
+              <button type="button" className="admin-button admin-button-secondary opacity-60" disabled>
+                Save config
+              </button>
+            </div>
+          </SectionCard>
+        ) : null}
+
+        {activeSection === "prompts" ? (
+          <SectionCard
+            title="System prompts"
+            description="The instructions given to the AI model during refinement."
+          >
+            <div className="space-y-6">
+              <PreviewNotice message="System prompt editing is not persisted in this pass because the current admin API does not expose save, reset, or preview endpoints for these controls." />
+
+              <div className="admin-field-stack">
+                <label className="admin-field-label" htmlFor="system-prompt">
+                  Main refinement system prompt
+                </label>
+                <textarea
+                  id="system-prompt"
+                  className="admin-textarea min-h-[220px] font-mono text-sm"
+                  value={systemPrompt}
+                  onChange={(event) => setSystemPrompt(event.target.value)}
+                />
+                <p className="admin-field-hint">
+                  Model: {configPreview.model} · Temperature: 0.3 · Max tokens: 2000
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button type="button" className="admin-button admin-button-secondary opacity-60" disabled>
+                  Save prompt
+                </button>
+                <button type="button" className="admin-button admin-button-secondary opacity-60" disabled>
+                  Reset to default
+                </button>
+                <button type="button" className="admin-button admin-button-secondary opacity-60" disabled>
+                  Preview output
+                </button>
+              </div>
+            </div>
+          </SectionCard>
+        ) : null}
+      </SectionWorkspace>
     </div>
   );
+}
+
+function downloadJson(filename: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function formatDate(value?: string) {
+  if (!value) return "Unknown";
+  return new Date(value).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }

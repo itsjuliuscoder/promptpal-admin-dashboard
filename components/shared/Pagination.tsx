@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 
 interface PaginationProps {
   currentPage: number;
@@ -67,34 +68,30 @@ export default function Pagination({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 px-1">
-      {/* Results info */}
-      <div className="text-sm text-gray-600 dark:text-gray-400">
-        Showing <span className="font-medium text-gray-900 dark:text-gray-100">{startItem}</span> to{" "}
-        <span className="font-medium text-gray-900 dark:text-gray-100">{endItem}</span> of{" "}
-        <span className="font-medium text-gray-900 dark:text-gray-100">{totalItems}</span> results
+    <div className="admin-panel mt-5 flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-sm text-[color:var(--admin-text-soft)]">
+        Showing <span className="font-semibold text-[color:var(--admin-text)]">{startItem}</span> to{" "}
+        <span className="font-semibold text-[color:var(--admin-text)]">{endItem}</span> of{" "}
+        <span className="font-semibold text-[color:var(--admin-text)]">{totalItems}</span> results
       </div>
 
-      {/* Pagination controls */}
-      <div className="flex items-center gap-2">
-        {/* Previous button */}
+      <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="admin-button admin-button-secondary min-w-[46px] px-3 disabled:cursor-not-allowed disabled:opacity-45"
           aria-label="Previous page"
         >
-          Previous
+          <FiChevronLeft size={16} />
         </button>
 
-        {/* Page numbers */}
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-2">
           {pageNumbers.map((page, index) => {
             if (page === "ellipsis") {
               return (
                 <span
                   key={`ellipsis-${index}`}
-                  className="px-2 py-1 text-gray-500 dark:text-gray-400"
+                  className="px-2 py-1 text-sm text-[color:var(--admin-text-faint)]"
                 >
                   ...
                 </span>
@@ -108,10 +105,10 @@ export default function Pagination({
               <button
                 key={pageNum}
                 onClick={() => onPageChange(pageNum)}
-                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`admin-button min-w-[46px] px-3 ${
                   isActive
-                    ? "bg-[#A84C34] text-white"
-                    : "text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    ? "admin-button-primary"
+                    : "admin-button-secondary"
                 }`}
                 aria-label={`Go to page ${pageNum}`}
                 aria-current={isActive ? "page" : undefined}
@@ -122,14 +119,13 @@ export default function Pagination({
           })}
         </div>
 
-        {/* Next button */}
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="admin-button admin-button-secondary min-w-[46px] px-3 disabled:cursor-not-allowed disabled:opacity-45"
           aria-label="Next page"
         >
-          Next
+          <FiChevronRight size={16} />
         </button>
       </div>
     </div>

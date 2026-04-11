@@ -1,20 +1,32 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  FiCheck,
+  FiClock,
+  FiFileText,
+  FiMail,
+  FiRefreshCw,
+  FiShield,
+  FiUserPlus,
+  FiUsers,
+  FiX,
+} from "react-icons/fi";
 import PageHeader from "@/components/shared/PageHeader";
+import ErrorState from "@/components/shared/ErrorState";
+import LoadingSkeleton, { TableSkeleton } from "@/components/shared/LoadingSkeleton";
 import DataTable from "@/components/shared/DataTable";
-import FilterBar from "@/components/shared/FilterBar";
 import Pagination from "@/components/shared/Pagination";
 import StatusBadge from "@/components/shared/StatusBadge";
-import ErrorState from "@/components/shared/ErrorState";
-import LoadingSkeleton from "@/components/shared/LoadingSkeleton";
+import SectionCard from "@/components/shared/SectionCard";
+import SectionWorkspace, { WorkspaceSectionItem } from "@/components/shared/SectionWorkspace";
+import { PreviewNotice } from "@/components/shared/AdminWidgets";
+import { useSectionQueryState } from "@/lib/hooks/useSectionQueryState";
 import { adminService } from "@/lib/services/adminService";
 import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
-import { FiUserPlus, FiMail, FiX, FiRefreshCw } from "react-icons/fi";
 
-interface Admin {
+interface AdminRow {
   _id: string;
   username: string;
   email: string;
@@ -28,28 +40,95 @@ interface Admin {
   createdAt: string;
 }
 
+interface AuditLogRow {
+  _id?: string;
+  action?: string;
+  actorRole?: string;
+  targetType?: string;
+  source?: string;
+  createdAt?: string;
+  metadata?: Record<string, unknown>;
+  ipAddress?: string;
+}
+
+const SECTION_ITEMS: WorkspaceSectionItem[] = [
+  { id: "all", label: "All admins", icon: <FiUsers size={18} /> },
+  { id: "roles", label: "Roles & permissions", icon: <FiShield size={18} /> },
+  { id: "activity", label: "Admin activity log", icon: <FiFileText size={18} /> },
+];
+
+function formatDate(value?: string) {
+  if (!value) return "Unknown";
+  return new Date(value).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatRole(value?: string) {
+  return String(value || "admin").replace(/_/g, " ");
+}
+
+function formatAction(action?: string) {
+  return String(action || "unknown action").replace(/_/g, " ");
+}
+
+function formatLogDescription(log: AuditLogRow) {
+  const base = formatAction(log.action);
+  const target = log.targetType ? ` on ${String(log.targetType).replace(/_/g, " ")}` : "";
+  const metadataStatus =
+    typeof log.metadata?.status === "string"
+      ? ` (${log.metadata.status})`
+      : typeof log.metadata?.result === "string"
+        ? ` (${log.metadata.result})`
+        : "";
+
+  return `${base}${target}${metadataStatus}`;
+}
+
+function getLogStatus(log: AuditLogRow) {
+  const status = String(log.metadata?.status || log.metadata?.result || "").toLowerCase();
+  if (!status) return null;
+  if (status.includes("success") || status === "ok") return { label: status, variant: "success" as const };
+  if (status.includes("warn") || status.includes("pending")) return { label: status, variant: "warning" as const };
+  return { label: status, variant: "error" as const };
+}
+
 export default function AdminsPage() {
-  const router = useRouter();
   const { admin } = useAdminAuth();
   const isSuperAdmin = admin?.role === "super_admin";
+  const sectionIds = useMemo(() => SECTION_ITEMS.map((item) => item.id), []);
+  const { activeSection, setActiveSection } = useSectionQueryState(sectionIds, "all");
 
-  const [admins, setAdmins] = useState<Admin[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [admins, setAdmins] = useState<AdminRow[]>([]);
+  const [roles, setRoles] = useState<Record<string, string[]>>({});
+  const [auditLogs, setAuditLogs] = useState<AuditLogRow[]>([]);
+
+  const [adminsLoading, setAdminsLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [adminsError, setAdminsError] = useState<string | null>(null);
+  const [rolesError, setRolesError] = useState<string | null>(null);
+  const [logsError, setLogsError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
-  const [selectedRole, setSelectedRole] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedRole, setSelectedRole] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [totalAdmins, setTotalAdmins] = useState(0);
   const [resending, setResending] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
-  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [banner, setBanner] = useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
 
-  const loadAdmins = async (page: number = currentPage) => {
-    setLoading(true);
-    setError(null);
+  const loadAdmins = async (page = currentPage) => {
+    setAdminsLoading(true);
+    setAdminsError(null);
     try {
       const response = await adminService.getAllAdmins({
         page,
@@ -59,106 +138,153 @@ export default function AdminsPage() {
         status: selectedStatus || undefined,
       });
 
-      if (response.success && response.data) {
-        setAdmins(response.data);
-        if (response.pagination) {
-          setTotalPages(response.pagination.totalPages || 1);
-          setTotal(response.pagination.total || 0);
-        }
-      } else {
-        throw new Error(response.error || "Failed to load admins");
+      if (!response?.success) {
+        throw new Error(response?.error || "Failed to load admins");
       }
-    } catch (err: any) {
-      console.error("Failed to load admins", err);
-      setError(
-        err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Failed to load admins. Please try again."
+
+      setAdmins(response.data || []);
+      setTotalPages(response.pagination?.totalPages || 1);
+      setTotalAdmins(response.pagination?.total || 0);
+    } catch (error: any) {
+      console.error("Failed to load admins", error);
+      setAdminsError(
+        error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          "Failed to load admins."
       );
     } finally {
-      setLoading(false);
+      setAdminsLoading(false);
+    }
+  };
+
+  const loadRoles = async () => {
+    setRolesLoading(true);
+    setRolesError(null);
+    try {
+      const response = await adminService.getRolesAndPermissions();
+      setRoles(response?.data || response || {});
+    } catch (error) {
+      console.error("Failed to load roles", error);
+      setRolesError("Failed to load roles and permissions.");
+    } finally {
+      setRolesLoading(false);
+    }
+  };
+
+  const loadAuditLogs = async () => {
+    setLogsLoading(true);
+    setLogsError(null);
+    try {
+      const response = await adminService.getAuditLogs({ page: 1, limit: 12 });
+      setAuditLogs(response?.data || []);
+    } catch (error) {
+      console.error("Failed to load audit logs", error);
+      setLogsError("Failed to load admin activity.");
+    } finally {
+      setLogsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      loadAdmins(1);
-      setCurrentPage(1);
-    }
-  }, [search, selectedRole, selectedStatus]);
+    if (!isSuperAdmin) return;
+    loadRoles();
+    loadAuditLogs();
+  }, [isSuperAdmin]);
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      loadAdmins(currentPage);
-    }
-  }, [currentPage]);
+    if (!isSuperAdmin) return;
+    loadAdmins(currentPage);
+  }, [isSuperAdmin, currentPage, search, selectedRole, selectedStatus]);
 
-  const handleResendInvitation = async (adminId: string) => {
-    if (!confirm("Are you sure you want to resend the invitation email?")) {
+  const refreshActiveSection = () => {
+    setBanner(null);
+    if (activeSection === "all") {
+      loadAdmins(currentPage);
       return;
     }
+    if (activeSection === "roles") {
+      loadRoles();
+      return;
+    }
+    loadAuditLogs();
+  };
 
+  const handleResendInvitation = async (adminId: string) => {
     setResending(adminId);
+    setBanner(null);
     try {
       await adminService.resendInvitation(adminId);
-      setNotification({ type: "success", message: "Invitation resent successfully!" });
+      setBanner({ type: "success", message: "Invitation resent successfully." });
       loadAdmins(currentPage);
-      setTimeout(() => setNotification(null), 3000);
-    } catch (err: any) {
-      console.error("Failed to resend invitation", err);
-      setNotification({
+    } catch (error: any) {
+      console.error("Failed to resend invitation", error);
+      setBanner({
         type: "error",
         message:
-          err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Failed to resend invitation",
+          error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          "Failed to resend invitation.",
       });
-      setTimeout(() => setNotification(null), 5000);
     } finally {
       setResending(null);
     }
   };
 
   const handleCancelInvitation = async (adminId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to cancel this invitation? This will delete the admin record."
-      )
-    ) {
-      return;
-    }
-
     setCancelling(adminId);
+    setBanner(null);
     try {
       await adminService.cancelInvitation(adminId);
-      setNotification({ type: "success", message: "Invitation cancelled successfully!" });
+      setBanner({ type: "success", message: "Invitation cancelled successfully." });
       loadAdmins(currentPage);
-      setTimeout(() => setNotification(null), 3000);
-    } catch (err: any) {
-      console.error("Failed to cancel invitation", err);
-      setNotification({
+    } catch (error: any) {
+      console.error("Failed to cancel invitation", error);
+      setBanner({
         type: "error",
         message:
-          err.response?.data?.error ||
-          err.response?.data?.message ||
-          "Failed to cancel invitation",
+          error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          "Failed to cancel invitation.",
       });
-      setTimeout(() => setNotification(null), 5000);
     } finally {
       setCancelling(null);
     }
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  const pendingInvites = admins.filter((row) => row.invitationStatus === "pending").length;
+  const roleNames = Object.keys(roles);
+  const permissionCategories = Array.from(
+    new Set(
+      roleNames.flatMap((role) =>
+        (roles[role] || []).map((permission) => permission.split(":")[0])
+      )
+    )
+  );
+
+  const roleMatrixRows = roleNames.map((roleName) => {
+    const permissions = roles[roleName] || [];
+    const values = permissionCategories.reduce<Record<string, string>>((acc, category) => {
+      const match = permissions.find((permission) => permission.startsWith(`${category}:`));
+      acc[category] = match ? match.split(":")[1] : "";
+      return acc;
+    }, {});
+
+    return {
+      role: roleName,
+      ...values,
+    };
+  });
 
   if (!isSuperAdmin) {
     return (
-      <div className="p-6 space-y-6">
-        <PageHeader title="Admins" description="Manage admin accounts" />
+      <div className="admin-page space-y-6">
+        <PageHeader
+          eyebrow="Operations"
+          title="Admins"
+          description="Manage who can access the admin workspace."
+        />
         <ErrorState
-          title="Access Denied"
+          title="Access denied"
           message="Only super admins can view and manage admin accounts."
         />
       </div>
@@ -166,178 +292,342 @@ export default function AdminsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <PageHeader title="Admins" description="Manage admin accounts and invitations" />
-        <Link
-          href="/admins/create"
-          className="flex items-center gap-2 px-4 py-2 bg-[#A84C34] text-white rounded-lg hover:bg-[#92361a] transition-colors"
-        >
-          <FiUserPlus size={18} />
-          Invite Admin
-        </Link>
-      </div>
+    <div className="admin-page space-y-6">
+      <PageHeader
+        eyebrow="Operations"
+        title="Admins"
+        description="Manage admin access, role coverage, and recent administrative activity."
+        metadata={<span className="admin-stat-pill">{totalAdmins || admins.length} admin records</span>}
+        actions={
+          <>
+            <button type="button" className="admin-button admin-button-secondary" onClick={refreshActiveSection}>
+              <FiRefreshCw size={16} />
+              Refresh
+            </button>
+            <Link href="/admins/create" className="admin-button admin-button-primary">
+              <FiUserPlus size={16} />
+              Invite admin
+            </Link>
+          </>
+        }
+      />
 
-      {notification && (
+      {banner ? (
         <div
-          className={`p-4 rounded-lg border ${
-            notification.type === "success"
-              ? "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border-green-200 dark:border-green-800"
-              : "bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800"
+          className={`rounded-[1rem] border px-4 py-3 text-sm ${
+            banner.type === "success"
+              ? "border-[color:var(--admin-success)]/30 bg-[color:var(--admin-success-soft)] text-[color:var(--admin-success)]"
+              : "border-[color:var(--admin-danger)]/30 bg-[color:var(--admin-danger-soft)] text-[color:var(--admin-danger)]"
           }`}
         >
-          {notification.message}
+          {banner.message}
         </div>
-      )}
+      ) : null}
 
-      <FilterBar>
-        <input
-          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-200"
-          placeholder="Search by username or email"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          value={selectedRole}
-          onChange={(e) => {
-            setSelectedRole(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-200"
-        >
-          <option value="">All Roles</option>
-          <option value="super_admin">Super Admin</option>
-          <option value="admin">Admin</option>
-          <option value="support">Support</option>
-          <option value="analyst">Analyst</option>
-        </select>
-        <select
-          value={selectedStatus}
-          onChange={(e) => {
-            setSelectedStatus(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-white dark:bg-gray-900 text-sm text-gray-700 dark:text-gray-200"
-        >
-          <option value="">All Status</option>
-          <option value="pending">Pending Invitations</option>
-          <option value="active">Active Admins</option>
-        </select>
-      </FilterBar>
+      <SectionWorkspace
+        sections={SECTION_ITEMS}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        sectionLabel="Admin sections"
+      >
+        {activeSection === "all" ? (
+          <div className="space-y-6">
+            <section className="admin-summary-strip">
+              <div className="admin-summary-item">
+                <p className="admin-summary-label">Total admins</p>
+                <p className="admin-summary-value">{totalAdmins || admins.length}</p>
+                <p className="admin-summary-hint">Across active accounts and invitations</p>
+              </div>
+              <div className="admin-summary-item">
+                <p className="admin-summary-label">Pending invites</p>
+                <p className="admin-summary-value">{pendingInvites}</p>
+                <p className="admin-summary-hint">Visible on the current result page</p>
+              </div>
+              <div className="admin-summary-item">
+                <p className="admin-summary-label">Role types</p>
+                <p className="admin-summary-value">{roleNames.length || 4}</p>
+                <p className="admin-summary-hint">Current backend-defined admin roles</p>
+              </div>
+              <div className="admin-summary-item">
+                <p className="admin-summary-label">Filters</p>
+                <p className="admin-summary-value">{[search, selectedRole, selectedStatus].filter(Boolean).length}</p>
+                <p className="admin-summary-hint">Search and status filters currently applied</p>
+              </div>
+            </section>
 
-      {loading ? (
-        <LoadingSkeleton />
-      ) : error && admins.length === 0 ? (
-        <ErrorState title="Error" message={error} />
-      ) : (
-        <>
-          <DataTable
-            rows={admins}
-            columns={[
-              {
-                key: "username",
-                label: "Username",
-                render: (value, row) => (
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-white">{value}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{row.email}</div>
+            <SectionCard
+              title="All admins"
+              description="Manage who has access to the admin panel and handle outstanding invitations."
+              actions={
+                <Link href="/admins/create" className="admin-button admin-button-primary">
+                  <FiUserPlus size={16} />
+                  Invite admin
+                </Link>
+              }
+            >
+              <div className="space-y-5">
+                <div className="admin-toolbar">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,0.8fr))]">
+                    <input
+                      className="admin-input"
+                      placeholder="Search name or email"
+                      value={search}
+                      onChange={(event) => {
+                        setCurrentPage(1);
+                        setSearch(event.target.value);
+                      }}
+                    />
+                    <select
+                      className="admin-select"
+                      value={selectedRole}
+                      onChange={(event) => {
+                        setCurrentPage(1);
+                        setSelectedRole(event.target.value);
+                      }}
+                    >
+                      <option value="">All roles</option>
+                      <option value="super_admin">Super admin</option>
+                      <option value="admin">Admin</option>
+                      <option value="support">Support</option>
+                      <option value="analyst">Analyst</option>
+                    </select>
+                    <select
+                      className="admin-select"
+                      value={selectedStatus}
+                      onChange={(event) => {
+                        setCurrentPage(1);
+                        setSelectedStatus(event.target.value);
+                      }}
+                    >
+                      <option value="">All statuses</option>
+                      <option value="pending">Pending invitation</option>
+                      <option value="active">Active admin</option>
+                    </select>
                   </div>
-                ),
-              },
-              {
-                key: "role",
-                label: "Role",
-                render: (value) => (
-                  <span className="capitalize">{String(value).replace("_", " ")}</span>
-                ),
-              },
-              {
-                key: "invitationStatus",
-                label: "Status",
-                render: (value, row) => {
-                  if (value === "pending") {
-                    return <StatusBadge label="Pending Invitation" variant="warning" />;
-                  }
-                  if (value === "accepted") {
-                    return <StatusBadge label="Active" variant="success" />;
-                  }
-                  if (value === "expired") {
-                    return <StatusBadge label="Expired" variant="error" />;
-                  }
-                  return <StatusBadge label="Active" variant="success" />;
-                },
-              },
-              {
-                key: "invitedBy",
-                label: "Invited By",
-                render: (value) => {
-                  if (!value) return <span className="text-gray-400">-</span>;
+                </div>
+
+                {adminsLoading ? (
+                  <TableSkeleton rows={8} columns={5} />
+                ) : adminsError ? (
+                  <ErrorState message={adminsError} onRetry={() => loadAdmins(currentPage)} />
+                ) : (
+                  <>
+                    <DataTable
+                      rows={admins}
+                      rowKey={(row) => row._id}
+                      mobileCardTitle={(row) => row.username}
+                      mobileCardMeta={(row) => row.email}
+                      mobileCardFooter={(row) => (
+                        <StatusBadge
+                          label={row.invitationStatus === "pending" ? "Pending" : "Active"}
+                          variant={row.invitationStatus === "pending" ? "warning" : "success"}
+                          size="sm"
+                        />
+                      )}
+                      columns={[
+                        {
+                          key: "username",
+                          label: "Name",
+                          emphasize: true,
+                          width: "28%",
+                          render: (value, row) => (
+                            <div className="space-y-1">
+                              <div className="font-semibold text-[color:var(--admin-text)]">{value}</div>
+                              <div className="text-xs text-[color:var(--admin-text-faint)]">{row.email}</div>
+                            </div>
+                          ),
+                        },
+                        {
+                          key: "role",
+                          label: "Role",
+                          width: "15%",
+                          render: (value) => (
+                            <StatusBadge label={formatRole(value)} variant="info" />
+                          ),
+                        },
+                        {
+                          key: "invitationStatus",
+                          label: "Status",
+                          width: "16%",
+                          render: (value) => {
+                            if (value === "pending") {
+                              return <StatusBadge label="Pending invite" variant="warning" />;
+                            }
+                            if (value === "expired") {
+                              return <StatusBadge label="Expired" variant="error" />;
+                            }
+                            return <StatusBadge label="Active" variant="success" />;
+                          },
+                        },
+                        {
+                          key: "invitedBy",
+                          label: "Invited by",
+                          width: "21%",
+                          render: (value) =>
+                            value ? (
+                              <div>
+                                <div className="text-[color:var(--admin-text)]">{value.username}</div>
+                                <div className="text-xs text-[color:var(--admin-text-faint)]">{value.email}</div>
+                              </div>
+                            ) : (
+                              <span className="text-[color:var(--admin-text-faint)]">-</span>
+                            ),
+                        },
+                        {
+                          key: "createdAt",
+                          label: "Created",
+                          width: "12%",
+                          render: (value) => formatDate(value),
+                        },
+                        {
+                          key: "_id",
+                          label: "Actions",
+                          width: "8%",
+                          align: "right",
+                          render: (value, row) =>
+                            row.invitationStatus === "pending" ? (
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  className="admin-button admin-button-secondary min-h-[38px] px-3 py-2"
+                                  disabled={resending === value || cancelling === value}
+                                  onClick={() => handleResendInvitation(value)}
+                                >
+                                  {resending === value ? <FiRefreshCw className="animate-spin" size={14} /> : <FiMail size={14} />}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="admin-button admin-button-ghost min-h-[38px] px-3 py-2 text-[color:var(--admin-danger)]"
+                                  disabled={resending === value || cancelling === value}
+                                  onClick={() => handleCancelInvitation(value)}
+                                >
+                                  {cancelling === value ? <FiRefreshCw className="animate-spin" size={14} /> : <FiX size={14} />}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[color:var(--admin-text-faint)]">-</span>
+                            ),
+                        },
+                      ]}
+                    />
+
+                    {totalPages > 1 ? (
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalAdmins}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={setCurrentPage}
+                      />
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </SectionCard>
+          </div>
+        ) : null}
+
+        {activeSection === "roles" ? (
+          <SectionCard
+            title="Roles & permissions"
+            description="Define what each admin role can access and modify."
+            actions={
+              <button type="button" className="admin-button admin-button-secondary opacity-60" disabled>
+                <FiUserPlus size={16} />
+                Create custom role
+              </button>
+            }
+          >
+            <div className="space-y-5">
+              <PreviewNotice message="The backend currently exposes a fixed role matrix only. Custom role creation is shown in the design but remains unavailable in this pass." />
+
+              {rolesLoading ? (
+                <TableSkeleton rows={4} columns={permissionCategories.length + 1} />
+              ) : rolesError ? (
+                <ErrorState message={rolesError} onRetry={loadRoles} />
+              ) : (
+                <DataTable
+                  rows={roleMatrixRows}
+                  rowKey={(row) => row.role}
+                  columns={[
+                    {
+                      key: "role",
+                      label: "Role",
+                      emphasize: true,
+                      render: (value) => (
+                        <StatusBadge label={String(value).replace(/_/g, " ")} variant="info" />
+                      ),
+                    },
+                    ...permissionCategories.map((category) => ({
+                      key: category,
+                      label: category,
+                      align: "center" as const,
+                      render: (value: string) => {
+                        if (value === "write") {
+                          return <FiCheck className="mx-auto text-[color:var(--admin-success)]" size={18} />;
+                        }
+                        if (value === "read") {
+                          return <span className="text-xs font-medium text-[color:var(--admin-text-soft)]">read-only</span>;
+                        }
+                        return <span className="text-[color:var(--admin-text-faint)]">—</span>;
+                      },
+                    })),
+                  ]}
+                />
+              )}
+            </div>
+          </SectionCard>
+        ) : null}
+
+        {activeSection === "activity" ? (
+          <SectionCard
+            title="Admin activity log"
+            description="Append-only record of recent admin actions across the platform."
+          >
+            <div className="space-y-4">
+              {logsLoading ? (
+                <LoadingSkeleton rows={8} showHeader={false} />
+              ) : logsError ? (
+                <ErrorState message={logsError} onRetry={loadAuditLogs} />
+              ) : auditLogs.length === 0 ? (
+                <PreviewNotice title="No activity yet" message="No recent admin audit entries were returned by the backend." />
+              ) : (
+                auditLogs.map((log, index) => {
+                  const status = getLogStatus(log);
                   return (
-                    <div>
-                      <div className="text-sm">{value.username}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{value.email}</div>
+                    <div
+                      key={log._id || `${log.action}-${index}`}
+                      className="admin-list-card flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
+                    >
+                      <div className="grid gap-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="text-sm font-semibold text-[color:var(--admin-text)]">
+                            {formatDate(log.createdAt)}
+                          </span>
+                          <span className="text-sm font-semibold text-[color:var(--admin-accent-strong)]">
+                            {admin?.username || "Admin"}
+                          </span>
+                          {status ? (
+                            <StatusBadge label={status.label} variant={status.variant} size="sm" />
+                          ) : null}
+                        </div>
+                        <p className="text-base font-medium text-[color:var(--admin-text)]">
+                          {formatLogDescription(log)}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-[color:var(--admin-text-faint)]">
+                          {log.source ? <span>Source: {log.source}</span> : null}
+                          {log.actorRole ? <span>Role: {formatRole(log.actorRole)}</span> : null}
+                          {log.ipAddress ? <span>IP: {log.ipAddress}</span> : null}
+                        </div>
+                      </div>
                     </div>
                   );
-                },
-              },
-              {
-                key: "createdAt",
-                label: "Created",
-                render: (value) => {
-                  if (!value) return "-";
-                  return new Date(value).toLocaleDateString();
-                },
-              },
-              {
-                key: "_id",
-                label: "Actions",
-                render: (value, row) => {
-                  if (row.invitationStatus === "pending") {
-                    return (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleResendInvitation(value)}
-                          disabled={resending === value || cancelling === value}
-                          className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
-                          title="Resend invitation"
-                        >
-                          {resending === value ? (
-                            <FiRefreshCw size={16} className="animate-spin" />
-                          ) : (
-                            <FiMail size={16} />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleCancelInvitation(value)}
-                          disabled={resending === value || cancelling === value}
-                          className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
-                          title="Cancel invitation"
-                        >
-                          {cancelling === value ? (
-                            <FiRefreshCw size={16} className="animate-spin" />
-                          ) : (
-                            <FiX size={16} />
-                          )}
-                        </button>
-                      </div>
-                    );
-                  }
-                  return <span className="text-gray-400 text-sm">-</span>;
-                },
-              },
-            ]}
-          />
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={total}
-              itemsPerPage={itemsPerPage}
-              onPageChange={handlePageChange}
-            />
-          )}
-        </>
-      )}
+                })
+              )}
+            </div>
+          </SectionCard>
+        ) : null}
+      </SectionWorkspace>
     </div>
   );
 }

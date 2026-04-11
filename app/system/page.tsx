@@ -1,317 +1,544 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  FiActivity,
+  FiAlertTriangle,
+  FiDownload,
+  FiRefreshCw,
+  FiShield,
+  FiTool,
+} from "react-icons/fi";
+import PageHeader from "@/components/shared/PageHeader";
+import ErrorState from "@/components/shared/ErrorState";
+import { CardSkeleton, TableSkeleton } from "@/components/shared/LoadingSkeleton";
 import SectionCard from "@/components/shared/SectionCard";
 import DataTable from "@/components/shared/DataTable";
-import PageHeader from "@/components/shared/PageHeader";
-import LoadingSkeleton, { CardSkeleton } from "@/components/shared/LoadingSkeleton";
-import ErrorState from "@/components/shared/ErrorState";
 import StatusBadge from "@/components/shared/StatusBadge";
-import { FiCheckCircle, FiXCircle, FiShield, FiUsers, FiUserPlus } from "react-icons/fi";
-import Link from "next/link";
-import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
+import SectionWorkspace, { WorkspaceSectionItem } from "@/components/shared/SectionWorkspace";
+import { MetricTile, PreviewNotice, ToggleCard } from "@/components/shared/AdminWidgets";
+import { useSectionQueryState } from "@/lib/hooks/useSectionQueryState";
 import { adminService } from "@/lib/services/adminService";
 
+const SECTION_ITEMS: WorkspaceSectionItem[] = [
+  { id: "status", label: "System status", icon: <FiActivity size={18} /> },
+  { id: "jobs", label: "Background jobs", icon: <FiTool size={18} /> },
+  { id: "security", label: "Security rules", icon: <FiShield size={18} /> },
+  { id: "logs", label: "Error logs", icon: <FiAlertTriangle size={18} /> },
+];
+
+const DEFAULT_SECURITY_PREVIEW = {
+  apiRateLimit: "100",
+  authRateLimit: "10",
+  blockTor: false,
+  requireHttps: true,
+  adminAllowlist: false,
+};
+
+function formatDate(value?: string) {
+  if (!value) return "Unknown";
+  return new Date(value).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function downloadJson(filename: string, data: unknown) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function AdminSystemPage() {
-  const { admin } = useAdminAuth();
-  const isSuperAdmin = admin?.role === "super_admin";
+  const sectionIds = useMemo(() => SECTION_ITEMS.map((item) => item.id), []);
+  const { activeSection, setActiveSection } = useSectionQueryState(sectionIds, "status");
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [overview, setOverview] = useState<any>(null);
   const [authStatus, setAuthStatus] = useState<any>(null);
-  const [roles, setRoles] = useState<any>(null);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  const [failedLogins, setFailedLogins] = useState<any[]>([]);
   const [aiHealth, setAiHealth] = useState<any>(null);
+  const [failedLogins, setFailedLogins] = useState<any[]>([]);
   const [suspiciousActivity, setSuspiciousActivity] = useState<any[]>([]);
   const [abuseSignals, setAbuseSignals] = useState<any[]>([]);
   const [injectionAttempts, setInjectionAttempts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [securityPreview, setSecurityPreview] = useState(DEFAULT_SECURITY_PREVIEW);
+
+  const loadSystemData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [
+        overviewRes,
+        authRes,
+        aiRes,
+        failedRes,
+        suspiciousRes,
+        abuseRes,
+        injectionRes,
+        auditRes,
+      ] = await Promise.all([
+        adminService.getOverview().catch(() => null),
+        adminService.getSystemAuthStatus().catch(() => null),
+        adminService.getAIHealth().catch(() => null),
+        adminService.getFailedLogins().catch(() => ({ data: [] })),
+        adminService.getSuspiciousActivity().catch(() => ({ data: [] })),
+        adminService.getAbuseSignals().catch(() => ({ data: [] })),
+        adminService.getInjectionAttempts().catch(() => ({ data: [] })),
+        adminService.getAuditLogs({ page: 1, limit: 10 }).catch(() => ({ data: [] })),
+      ]);
+
+      setOverview(overviewRes);
+      setAuthStatus(authRes?.data || authRes || null);
+      setAiHealth(aiRes?.data || aiRes || null);
+      setFailedLogins(failedRes?.data || []);
+      setSuspiciousActivity(suspiciousRes?.data || []);
+      setAbuseSignals(abuseRes?.data || []);
+      setInjectionAttempts(injectionRes?.data || []);
+      setAuditLogs(auditRes?.data || []);
+    } catch (loadError) {
+      console.error("Failed to load system data", loadError);
+      setError("Failed to load system and security data.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const [authRes, rolesRes, logsRes, failedRes, aiRes, suspiciousRes, abuseRes, injectionRes] =
-          await Promise.all([
-            adminService.getSystemAuthStatus(),
-            adminService.getRolesAndPermissions(),
-            adminService.getAuditLogs({ page: 1, limit: 20 }),
-            adminService.getFailedLogins().catch(() => ({ data: [] })),
-            adminService.getAIHealth().catch(() => ({ data: null })),
-            adminService.getSuspiciousActivity().catch(() => ({ data: [] })),
-            adminService.getAbuseSignals().catch(() => ({ data: [] })),
-            adminService.getInjectionAttempts().catch(() => ({ data: [] })),
-          ]);
-        setAuthStatus(authRes.data ?? authRes);
-        setRoles(rolesRes.data ?? rolesRes);
-        setAuditLogs(Array.isArray(logsRes.data) ? logsRes.data : []);
-        setFailedLogins(Array.isArray(failedRes?.data) ? failedRes.data : []);
-        setAiHealth(aiRes?.data ?? aiRes ?? null);
-        setSuspiciousActivity(Array.isArray(suspiciousRes?.data) ? suspiciousRes.data : []);
-        setAbuseSignals(Array.isArray(abuseRes?.data) ? abuseRes.data : []);
-        setInjectionAttempts(Array.isArray(injectionRes?.data) ? injectionRes.data : []);
-      } catch (err) {
-        console.error("Failed to load system data", err);
-        setError("Failed to load system data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    loadSystemData();
   }, []);
+
+  const apiUptimeMinutes = overview?.platformStatus?.apiUptimeSeconds
+    ? Math.floor(overview.platformStatus.apiUptimeSeconds / 60)
+    : null;
+  const activeUsers30d = overview?.kpis?.find((item: any) =>
+    String(item.label).toLowerCase().includes("active (30d)")
+  )?.value;
+  const aiProviderCount = Array.isArray(aiHealth?.providers) ? aiHealth.providers.length : 0;
+  const avgProviderLatency = Array.isArray(aiHealth?.responseTimes) && aiHealth.responseTimes.length > 0
+    ? Math.round(
+        aiHealth.responseTimes.reduce(
+          (sum: number, item: any) => sum + Number(item.avgResponseTime || 0),
+          0
+        ) / aiHealth.responseTimes.length
+      )
+    : null;
+  const backgroundJobState = overview?.platformStatus?.backgroundJobs?.status || "Unknown";
+  const extensionVersion = overview?.platformStatus?.extensionVersionHealth?.currentVersion || "Unknown";
+  const extensionLastReported = overview?.platformStatus?.extensionVersionHealth?.lastReportedAt;
+
+  const services = [
+    {
+      label: "Google OAuth",
+      description: "Authentication provider",
+      value: authStatus?.googleOAuth ? "Online" : "Disabled",
+      variant: authStatus?.googleOAuth ? "success" : "warning",
+    },
+    {
+      label: "Email Auth",
+      description: "Local email/password login",
+      value: authStatus?.emailAuth ? "Online" : "Disabled",
+      variant: authStatus?.emailAuth ? "success" : "warning",
+    },
+    {
+      label: "API uptime",
+      description: "Application runtime health",
+      value: apiUptimeMinutes != null ? `${apiUptimeMinutes} min` : "Unknown",
+      variant: apiUptimeMinutes != null ? "success" : "warning",
+    },
+    {
+      label: "Background jobs",
+      description: "Worker and queue state",
+      value: backgroundJobState,
+      variant:
+        String(backgroundJobState).toLowerCase() === "ok" ||
+        String(backgroundJobState).toLowerCase() === "running"
+          ? "success"
+          : "warning",
+    },
+    {
+      label: "Chrome Extension",
+      description: "Extension heartbeat",
+      value: extensionVersion,
+      variant: extensionVersion === "Unknown" ? "warning" : "success",
+    },
+  ];
+
+  const combinedLogs = useMemo(() => {
+    const rows = [
+      ...failedLogins.map((item, index) => ({
+        id: `failed-${index}`,
+        category: "Failed login",
+        source: item.email || item.ip || "Unknown source",
+        reason: item.reason || "Authentication failure",
+        severity: "warning",
+        createdAt: item.createdAt,
+      })),
+      ...suspiciousActivity.map((item, index) => ({
+        id: `suspicious-${index}`,
+        category: "Suspicious activity",
+        source: item.userId || item.ipAddress || "Unknown source",
+        reason: item.type || "Unexpected security signal",
+        severity: "warning",
+        createdAt: item.createdAt,
+      })),
+      ...abuseSignals.map((item, index) => ({
+        id: `abuse-${index}`,
+        category: "Abuse signal",
+        source: item.userId || item.source || "Unknown source",
+        reason: item.signal || "Abuse or policy trigger",
+        severity: "error",
+        createdAt: item.createdAt,
+      })),
+      ...injectionAttempts.map((item, index) => ({
+        id: `inject-${index}`,
+        category: "Injection attempt",
+        source: item.source || item.userId || "Unknown source",
+        reason: item.type || "Prompt injection",
+        severity: "error",
+        createdAt: item.createdAt,
+      })),
+      ...auditLogs.map((item, index) => ({
+        id: `audit-${index}`,
+        category: "Admin audit",
+        source: item.actorRole || item.source || "admin",
+        reason: item.action || "Audit event",
+        severity: "info",
+        createdAt: item.createdAt,
+      })),
+    ];
+
+    return rows.sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }, [abuseSignals, auditLogs, failedLogins, injectionAttempts, suspiciousActivity]);
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="admin-page space-y-6">
         <PageHeader
+          eyebrow="Operations"
           title="System & Security"
-          description="Monitor system health, authentication, and audit logs"
+          description="Monitor service health, worker state, and security signals."
         />
-        <CardSkeleton />
-        <CardSkeleton />
-        <CardSkeleton />
+        <div className="admin-workspace">
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="admin-page space-y-6">
         <PageHeader
+          eyebrow="Operations"
           title="System & Security"
-          description="Monitor system health, authentication, and audit logs"
+          description="Monitor service health, worker state, and security signals."
         />
-        <ErrorState message={error} onRetry={() => window.location.reload()} />
+        <ErrorState message={error} onRetry={loadSystemData} />
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="admin-page space-y-6">
       <PageHeader
+        eyebrow="Operations"
         title="System & Security"
-        description="Monitor system health, authentication, and audit logs"
+        description="Monitor service health, worker state, and security signals."
         actions={
-          isSuperAdmin ? (
-            <Link
-              href="/admins/create"
-              className="flex items-center gap-2 px-4 py-2 bg-[#A84C34] text-white rounded-lg hover:bg-[#92361a] transition-colors text-sm font-medium"
+          <>
+            <button type="button" className="admin-button admin-button-secondary" onClick={loadSystemData}>
+              <FiRefreshCw size={16} />
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="admin-button admin-button-secondary"
+              onClick={() =>
+                downloadJson("system-security-logs.json", {
+                  failedLogins,
+                  suspiciousActivity,
+                  abuseSignals,
+                  injectionAttempts,
+                  auditLogs,
+                })
+              }
             >
-              <FiUserPlus size={18} />
-              Create Admin
-            </Link>
-          ) : null
+              <FiDownload size={16} />
+              Export logs
+            </button>
+          </>
         }
       />
 
-      <SectionCard title="Authentication Status">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="flex-shrink-0">
-              {authStatus?.googleOAuth ? (
-                <FiCheckCircle className="text-green-500" size={24} />
-              ) : (
-                <FiXCircle className="text-red-500" size={24} />
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">Google OAuth</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {authStatus?.googleOAuth ? "Enabled" : "Disabled"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="flex-shrink-0">
-              {authStatus?.emailAuth ? (
-                <FiCheckCircle className="text-green-500" size={24} />
-              ) : (
-                <FiXCircle className="text-red-500" size={24} />
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">Email Auth</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {authStatus?.emailAuth ? "Enabled" : "Disabled"}
-              </p>
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Roles & Permissions">
-        <div className="space-y-4">
-          {roles &&
-            Object.entries(roles).map(([roleName, permissions]: [string, any]) => (
-              <div
-                key={roleName}
-                className="p-4 border border-gray-200 dark:border-gray-800 rounded-lg"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <FiUsers className="text-gray-500 dark:text-gray-400" size={18} />
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white capitalize">
-                    {roleName.replace(/_/g, " ")}
-                  </h4>
+      <SectionWorkspace
+        sections={SECTION_ITEMS}
+        activeSection={activeSection}
+        onSectionChange={setActiveSection}
+        sectionLabel="System and security sections"
+      >
+        {activeSection === "status" ? (
+          <div className="space-y-6">
+            <SectionCard
+              title="System status"
+              description="Real-time health of platform services and currently available telemetry."
+            >
+              <div className="space-y-6">
+                <div className="admin-metric-grid">
+                  <MetricTile
+                    label="API uptime"
+                    value={apiUptimeMinutes != null ? `${apiUptimeMinutes} min` : "Unknown"}
+                    note="Derived from current application uptime."
+                  />
+                  <MetricTile
+                    label="AI providers"
+                    value={aiProviderCount || "Unknown"}
+                    note={
+                      avgProviderLatency != null
+                        ? `Average provider latency ${avgProviderLatency}ms`
+                        : "Latency telemetry unavailable"
+                    }
+                  />
+                  <MetricTile
+                    label="Active users (30d)"
+                    value={activeUsers30d ?? "Unknown"}
+                    note="Pulled from the overview KPI feed."
+                  />
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {Array.isArray(permissions) &&
-                    permissions.map((permission: string) => (
-                      <span
-                        key={permission}
-                        className="px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded"
+
+                <div className="space-y-3">
+                  <h3 className="text-xl font-semibold tracking-[-0.03em] text-[color:var(--admin-text)]">
+                    Services
+                  </h3>
+                  <div className="space-y-3">
+                    {services.map((service) => (
+                      <div
+                        key={service.label}
+                        className="admin-list-card flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
                       >
-                        {permission}
-                      </span>
+                        <div>
+                          <p className="text-lg font-semibold text-[color:var(--admin-text)]">{service.label}</p>
+                          <p className="text-sm text-[color:var(--admin-text-soft)]">{service.description}</p>
+                        </div>
+                        <StatusBadge label={service.value} variant={service.variant as any} />
+                      </div>
                     ))}
+                  </div>
                 </div>
               </div>
-            ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Failed Logins">
-        <DataTable
-          rows={failedLogins}
-          columns={[
-            { key: "email", label: "Email" },
-            { key: "ip", label: "IP" },
-            {
-              key: "createdAt",
-              label: "Time",
-              render: (value) => (
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {value ? new Date(value).toLocaleString() : "N/A"}
-                </span>
-              ),
-            },
-          ]}
-          emptyMessage="No failed login attempts"
-        />
-      </SectionCard>
-
-      <SectionCard title="AI Health">
-        {aiHealth != null && typeof aiHealth === "object" ? (
-          <div className="space-y-2 text-sm">
-            {Array.isArray(aiHealth) ? (
-              <pre className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg overflow-auto max-h-48">
-                {JSON.stringify(aiHealth, null, 2)}
-              </pre>
-            ) : (
-              <ul className="space-y-1">
-                {Object.entries(aiHealth).map(([key, val]) => (
-                  <li key={key} className="flex justify-between gap-2">
-                    <span className="text-gray-600 dark:text-gray-400 capitalize">
-                      {String(key).replace(/([A-Z])/g, " $1").trim()}
-                    </span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {typeof val === "object" ? JSON.stringify(val) : String(val)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            </SectionCard>
           </div>
-        ) : (
-          <p className="text-sm text-gray-500 dark:text-gray-400">No AI health data available.</p>
-        )}
-      </SectionCard>
+        ) : null}
 
-      <SectionCard title="Security">
-        <div className="space-y-6">
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-              Suspicious Activity
-            </h4>
-            <DataTable
-              rows={suspiciousActivity}
-              columns={[
-                { key: "type", label: "Type" },
-                { key: "userId", label: "User" },
-                {
-                  key: "createdAt",
-                  label: "Time",
-                  render: (value) => (
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {value ? new Date(value).toLocaleString() : "N/A"}
-                    </span>
-                  ),
-                },
-              ]}
-              emptyMessage="No suspicious activity"
-            />
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Abuse Signals</h4>
-            <DataTable
-              rows={abuseSignals}
-              columns={[
-                { key: "signal", label: "Signal" },
-                { key: "userId", label: "User" },
-                {
-                  key: "createdAt",
-                  label: "Time",
-                  render: (value) => (
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {value ? new Date(value).toLocaleString() : "N/A"}
-                    </span>
-                  ),
-                },
-              ]}
-              emptyMessage="No abuse signals"
-            />
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-              Injection Attempts
-            </h4>
-            <DataTable
-              rows={injectionAttempts}
-              columns={[
-                { key: "type", label: "Type" },
-                { key: "source", label: "Source" },
-                {
-                  key: "createdAt",
-                  label: "Time",
-                  render: (value) => (
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {value ? new Date(value).toLocaleString() : "N/A"}
-                    </span>
-                  ),
-                },
-              ]}
-              emptyMessage="No injection attempts"
-            />
-          </div>
-        </div>
-      </SectionCard>
+        {activeSection === "jobs" ? (
+          <SectionCard
+            title="Background jobs"
+            description="Worker health and extension heartbeat based on currently exposed admin telemetry."
+          >
+            <div className="space-y-5">
+              <div className="admin-metric-grid">
+                <MetricTile label="Worker status" value={backgroundJobState} note={overview?.platformStatus?.backgroundJobs?.note || "No extra worker note available"} />
+                <MetricTile
+                  label="Extension version"
+                  value={extensionVersion}
+                  note={
+                    extensionLastReported
+                      ? `Last reported ${formatDate(extensionLastReported)}`
+                      : "No heartbeat report received"
+                  }
+                />
+                <MetricTile
+                  label="Queue telemetry"
+                  value="Unknown"
+                  note="Queue depth and job counts are not exposed by the current admin API."
+                />
+              </div>
 
-      <SectionCard title="Recent Audit Logs">
-        <DataTable
-          rows={auditLogs}
-          columns={[
-            { key: "action", label: "Action" },
-            {
-              key: "actorRole",
-              label: "Role",
-              render: (value) => (
-                <span className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-                  {String(value || "unknown").replace(/_/g, " ")}
-                </span>
-              ),
-            },
-            {
-              key: "createdAt",
-              label: "Timestamp",
-              render: (value) => (
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {value ? new Date(value).toLocaleString() : "N/A"}
-                </span>
-              ),
-            },
-          ]}
-          emptyMessage="No audit logs found"
-        />
-      </SectionCard>
+              <PreviewNotice message="The current backend does not expose queue depth, retries, or per-worker metrics. This page intentionally stays within the available overview telemetry." />
+            </div>
+          </SectionCard>
+        ) : null}
+
+        {activeSection === "security" ? (
+          <SectionCard
+            title="Security rules"
+            description="Rate limiting, IP controls, and access restrictions."
+          >
+            <div className="space-y-6">
+              <PreviewNotice message="Security rule persistence is not implemented in the current admin API. These controls are rendered as a design-faithful preview only." />
+
+              <div className="admin-field-grid">
+                <div className="admin-field-stack">
+                  <label className="admin-field-label" htmlFor="api-rate-limit">
+                    Rate limit — API (requests/min)
+                  </label>
+                  <input
+                    id="api-rate-limit"
+                    className="admin-input"
+                    value={securityPreview.apiRateLimit}
+                    onChange={(event) =>
+                      setSecurityPreview((current) => ({
+                        ...current,
+                        apiRateLimit: event.target.value,
+                      }))
+                    }
+                  />
+                  <p className="admin-field-hint">
+                    Applied per IP address. Exceeding this returns HTTP 429.
+                  </p>
+                </div>
+
+                <div className="admin-field-stack">
+                  <label className="admin-field-label" htmlFor="auth-rate-limit">
+                    Rate limit — Auth endpoints (requests/min)
+                  </label>
+                  <input
+                    id="auth-rate-limit"
+                    className="admin-input"
+                    value={securityPreview.authRateLimit}
+                    onChange={(event) =>
+                      setSecurityPreview((current) => ({
+                        ...current,
+                        authRateLimit: event.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <ToggleCard
+                  title="Block Tor exit nodes"
+                  description="Deny requests from known Tor exit IP addresses."
+                  checked={securityPreview.blockTor}
+                  onChange={(checked) =>
+                    setSecurityPreview((current) => ({ ...current, blockTor: checked }))
+                  }
+                />
+                <ToggleCard
+                  title="Require HTTPS"
+                  description="Redirect all HTTP requests to HTTPS."
+                  checked={securityPreview.requireHttps}
+                  onChange={(checked) =>
+                    setSecurityPreview((current) => ({ ...current, requireHttps: checked }))
+                  }
+                />
+                <ToggleCard
+                  title="Admin IP allowlist"
+                  description="Restrict admin panel access to specific IP ranges."
+                  checked={securityPreview.adminAllowlist}
+                  onChange={(checked) =>
+                    setSecurityPreview((current) => ({ ...current, adminAllowlist: checked }))
+                  }
+                />
+              </div>
+
+              <button type="button" className="admin-button admin-button-secondary opacity-60" disabled>
+                Save security settings
+              </button>
+            </div>
+          </SectionCard>
+        ) : null}
+
+        {activeSection === "logs" ? (
+          <div className="space-y-6">
+            <section className="admin-summary-strip">
+              <div className="admin-summary-item">
+                <p className="admin-summary-label">Failed logins</p>
+                <p className="admin-summary-value">{failedLogins.length}</p>
+                <p className="admin-summary-hint">Recent auth failures returned by the backend</p>
+              </div>
+              <div className="admin-summary-item">
+                <p className="admin-summary-label">Suspicious activity</p>
+                <p className="admin-summary-value">{suspiciousActivity.length}</p>
+                <p className="admin-summary-hint">Security signals flagged for review</p>
+              </div>
+              <div className="admin-summary-item">
+                <p className="admin-summary-label">Abuse signals</p>
+                <p className="admin-summary-value">{abuseSignals.length}</p>
+                <p className="admin-summary-hint">Potential policy or misuse incidents</p>
+              </div>
+              <div className="admin-summary-item">
+                <p className="admin-summary-label">Injection attempts</p>
+                <p className="admin-summary-value">{injectionAttempts.length}</p>
+                <p className="admin-summary-hint">Prompt-security related alerts</p>
+              </div>
+            </section>
+
+            <SectionCard
+              title="Error and security logs"
+              description="Consolidated feed from auth failures, security signals, and admin audit events."
+            >
+              {combinedLogs.length === 0 ? (
+                <PreviewNotice title="No logs returned" message="No recent log events were returned by the current system endpoints." />
+              ) : (
+                <DataTable
+                  rows={combinedLogs}
+                  rowKey={(row) => row.id}
+                  mobileCardTitle={(row) => row.category}
+                  mobileCardMeta={(row) => row.reason}
+                  mobileCardFooter={(row) => (
+                    <StatusBadge
+                      label={row.severity}
+                      variant={row.severity === "error" ? "error" : row.severity === "warning" ? "warning" : "info"}
+                      size="sm"
+                    />
+                  )}
+                  columns={[
+                    {
+                      key: "category",
+                      label: "Category",
+                      emphasize: true,
+                      width: "18%",
+                    },
+                    {
+                      key: "source",
+                      label: "Source",
+                      width: "24%",
+                      truncate: true,
+                    },
+                    {
+                      key: "reason",
+                      label: "Reason",
+                      width: "32%",
+                      truncate: true,
+                    },
+                    {
+                      key: "severity",
+                      label: "Severity",
+                      width: "12%",
+                      render: (value) => (
+                        <StatusBadge
+                          label={value}
+                          variant={value === "error" ? "error" : value === "warning" ? "warning" : "info"}
+                        />
+                      ),
+                    },
+                    {
+                      key: "createdAt",
+                      label: "Time",
+                      width: "14%",
+                      render: (value) => formatDate(value),
+                    },
+                  ]}
+                />
+              )}
+            </SectionCard>
+          </div>
+        ) : null}
+      </SectionWorkspace>
     </div>
   );
 }

@@ -17,12 +17,12 @@ export default function EmptyState({
   action,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="text-gray-400 dark:text-gray-600 mb-4">{icon}</div>
+    <div className="admin-panel-muted flex flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="mb-4 rounded-full p-4 text-[color:var(--admin-text-faint)]">{icon}</div>
       {title && (
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
+        <h3 className="mb-2 text-xl font-semibold tracking-[-0.03em] text-[color:var(--admin-text)]">{title}</h3>
       )}
-      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-4">{message}</p>
+      <p className="mb-4 max-w-md text-sm text-[color:var(--admin-text-soft)]">{message}</p>
       {action && <div className="mt-2">{action}</div>}
     </div>
   );

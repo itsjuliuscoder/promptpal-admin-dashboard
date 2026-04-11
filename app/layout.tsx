@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { FaBars } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 
 import "@/lib/config/axios-config";
@@ -42,31 +41,15 @@ export default function RootLayout({
       <body>
         <AdminAuthProvider>
           <ProtectedAdminRoute>
-            <div className="bg-gray-50 dark:bg-gray-950 min-h-screen transition-colors duration-300">
+            <div className="min-h-screen transition-colors duration-300">
               <a
                 href="#admin-main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-[#A84C34] focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[#A84C34] focus:ring-offset-2"
+                className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-[color:var(--admin-accent)] focus:px-4 focus:py-2 focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--admin-accent)] focus:ring-offset-2"
               >
                 Skip to main content
               </a>
 
-              {!isLoginRoute && (
-                <motion.button
-                  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                  className="lg:hidden fixed top-4 left-4 z-50 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 p-3 rounded-lg shadow-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#A84C34] focus:ring-offset-2"
-                  aria-label="Toggle admin navigation menu"
-                  aria-expanded={isMobileMenuOpen}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <FaBars size={20} aria-hidden="true" />
-                </motion.button>
-              )}
-
-              <div className="flex">
+              <div className="flex min-h-screen">
                 {!isLoginRoute && (
                   <>
                     <AnimatePresence>
@@ -84,7 +67,7 @@ export default function RootLayout({
                     </AnimatePresence>
 
                     <nav
-                      className="fixed left-0 top-0 h-screen z-40 lg:z-30"
+                      className="fixed left-0 top-0 z-40 h-screen lg:z-30"
                       aria-label="Admin navigation"
                     >
                       <AdminSidebar
@@ -99,14 +82,16 @@ export default function RootLayout({
 
                 <main
                   id="admin-main-content"
-                  className={`flex-1 w-full min-h-screen transition-all duration-300 ease-in-out ${
-                    isLoginRoute ? "ml-0" : isExpanded ? "lg:ml-64" : "lg:ml-20"
+                  className={`w-full flex-1 transition-all duration-300 ease-in-out ${
+                    isLoginRoute ? "ml-0" : isExpanded ? "lg:ml-[17.5rem]" : "lg:ml-24"
                   }`}
                   tabIndex={-1}
                 >
-                  {!isLoginRoute && <AdminHeader />}
+                  {!isLoginRoute && (
+                    <AdminHeader onMenuToggle={() => setIsMobileMenuOpen((prev) => !prev)} />
+                  )}
                   <motion.div
-                    className="min-h-[calc(100vh-80px)]"
+                    className="min-h-[calc(100vh-76px)]"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}

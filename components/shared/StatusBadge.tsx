@@ -5,44 +5,58 @@ import React from "react";
 interface StatusBadgeProps {
   label: string;
   variant?: "success" | "warning" | "error" | "info";
+  size?: "sm" | "md";
 }
 
-export default function StatusBadge({ label, variant }: StatusBadgeProps) {
+export default function StatusBadge({ label, variant, size = "md" }: StatusBadgeProps) {
   const normalized = label.toLowerCase();
   
-  let color: string;
+  let tone: { bg: string; fg: string };
   
   if (variant) {
     switch (variant) {
       case "success":
-        color = "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+        tone = { bg: "var(--admin-success-soft)", fg: "var(--admin-success)" };
         break;
       case "warning":
-        color = "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+        tone = { bg: "var(--admin-warning-soft)", fg: "var(--admin-warning)" };
         break;
       case "error":
-        color = "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+        tone = { bg: "var(--admin-danger-soft)", fg: "var(--admin-danger)" };
         break;
       case "info":
-        color = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+        tone = { bg: "var(--admin-accent-soft)", fg: "var(--admin-accent-strong)" };
         break;
       default:
-        color = "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+        tone = { bg: "var(--admin-panel-muted)", fg: "var(--admin-text-soft)" };
     }
   } else {
-    // Fallback to label-based logic for backward compatibility
-    color =
+    tone =
       normalized === "active" || normalized === "completed"
-        ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+        ? { bg: "var(--admin-success-soft)", fg: "var(--admin-success)" }
       : normalized === "blocked" || normalized === "suspended"
-        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        ? { bg: "var(--admin-danger-soft)", fg: "var(--admin-danger)" }
         : normalized === "pending"
-        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+        ? { bg: "var(--admin-warning-soft)", fg: "var(--admin-warning)" }
+        : { bg: "var(--admin-panel-muted)", fg: "var(--admin-text-soft)" };
   }
 
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${color}`}>
+    <span
+      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-medium ${
+        size === "sm" ? "text-[11px]" : "text-xs"
+      }`}
+      style={{
+        backgroundColor: tone.bg,
+        color: tone.fg,
+        borderColor: "color-mix(in srgb, var(--admin-border) 80%, transparent)",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: tone.fg }}
+      />
       {label}
     </span>
   );
