@@ -45,7 +45,7 @@ export default function AdminLoginPage() {
     >
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-[0_18px_40px_rgb(53_42_28_/_0.12)] border border-[#e8e2d8]">
         <header
-          className="flex justify-center px-8 py-8"
+          className="flex justify-center px-8 py-10"
           style={{ backgroundColor: HEADER_BG }}
         >
           <PromptPalAdminLogo priority />

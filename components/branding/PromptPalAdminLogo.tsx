@@ -21,12 +21,12 @@ export default function PromptPalAdminLogo({
       <Image
         src="/images/logo-dark.png"
         alt="PromptPal"
-        width={220}
-        height={56}
-        className="h-12 w-auto max-w-[min(100%,220px)] object-contain object-center"
+        width={320}
+        height={82}
+        className="h-20 w-auto max-w-[min(100%,320px)] object-contain object-center"
         priority={priority}
       />
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+      <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">
         Admin
       </span>
     </div>
