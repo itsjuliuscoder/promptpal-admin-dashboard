@@ -50,6 +50,7 @@ const sidebarGroups: SidebarGroup[] = [
       { label: "Chrome Extension", path: "/extension", icon: <FiZap size={18} /> },
       { label: "Billing & Plans", path: "/billing", icon: <FiCreditCard size={18} /> },
       { label: "Content & Templates", path: "/content", icon: <FiActivity size={18} /> },
+      { label: "Feedback", path: "/feedback", icon: <FiMessageSquare size={18} /> },
       { label: "Email", path: "/email", icon: <FiMail size={18} /> },
       { label: "System & Security", path: "/system", icon: <FiShield size={18} /> },
       { label: "Admins", path: "/admins", icon: <FiUserPlus size={18} /> },

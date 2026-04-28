@@ -76,6 +76,24 @@ export interface PaginatedResponse<T> {
   };
 }
 
+export interface AdminFeedbackUser {
+  _id: string;
+  name?: string;
+  email?: string;
+}
+
+export interface AdminFeedbackItem {
+  _id: string;
+  userId?: AdminFeedbackUser | null;
+  category: "general" | "feature-request" | "bug-report";
+  subject: string;
+  message: string;
+  priority: "low" | "medium" | "high";
+  status: "open" | "in-progress" | "resolved" | "closed";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const adminService = {
   getOverview: async () => {
     const response = await axios.get("/admin/overview");
@@ -290,6 +308,19 @@ export const adminService = {
   getCollections: async (params?: Record<string, string | number | undefined>) => {
     const response = await axios.get("/admin/collections", { params });
     return response.data;
+  },
+  getFeedback: async (params?: Record<string, string | number | undefined>) => {
+    const response = await axios.get("/admin/feedback", { params });
+    return response.data as {
+      success: boolean;
+      feedback: AdminFeedbackItem[];
+      pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+      };
+    };
   },
   getCollectionStats: async () => {
     const response = await axios.get("/admin/collections/stats");
