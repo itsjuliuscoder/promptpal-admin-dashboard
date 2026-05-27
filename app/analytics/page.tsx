@@ -7,7 +7,7 @@ import { CardSkeleton } from "@/components/shared/LoadingSkeleton";
 import ErrorState from "@/components/shared/ErrorState";
 import EmptyState from "@/components/shared/EmptyState";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { adminService } from "@/lib/services/adminService";
+import { adminService, type PublicRefinementAnalyticsData } from "@/lib/services/adminService";
 
 const COLORS = ["#A84C34", "#92361a", "#d97706", "#8b5cf6", "#06b6d4"];
 
@@ -54,6 +54,7 @@ export default function AdminAnalyticsPage() {
     summary: any;
     legacyTimeSeries: any[];
   } | null>(null);
+  const [publicRefinements, setPublicRefinements] = useState<PublicRefinementAnalyticsData | null>(null);
   const [templateAdoption, setTemplateAdoption] = useState<any[]>([]);
   const [templateSummary, setTemplateSummary] = useState<{
     totalTemplates?: number;
@@ -69,12 +70,13 @@ export default function AdminAnalyticsPage() {
       try {
         setLoading(true);
         setError(null);
-        const [usageRes, funnelRes, modelRes, refineRes, refineAgentRes, templateRes] = await Promise.all([
+        const [usageRes, funnelRes, modelRes, refineRes, refineAgentRes, publicRefinementRes, templateRes] = await Promise.all([
           adminService.getAnalyticsPromptUsage(30),
           adminService.getAnalyticsFunnel(),
           adminService.getAnalyticsModelDistribution(),
           adminService.getAnalyticsRefineChat(30),
           adminService.getAnalyticsRefineAgent(30),
+          adminService.getAnalyticsPublicRefinements(30),
           adminService.getAnalyticsTemplateAdoption(),
         ]);
         const rawUsage = usageRes.data ?? [];
@@ -107,6 +109,7 @@ export default function AdminAnalyticsPage() {
         } else {
           setRefineAgent(null);
         }
+        setPublicRefinements(publicRefinementRes?.data ?? null);
         const tpl = templateRes?.data;
         if (tpl && typeof tpl === "object" && "templates" in tpl) {
           setTemplateAdoption(Array.isArray((tpl as any).templates) ? (tpl as any).templates : []);
@@ -293,6 +296,93 @@ export default function AdminAnalyticsPage() {
               ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400">No time series data for the selected period.</p>
               )}
+            </div>
+          );
+        })()}
+      </SectionCard>
+
+      <SectionCard title="Public Refinements (Last 30 Days)">
+        {(() => {
+          if (!publicRefinements || (publicRefinements.summary?.total ?? 0) === 0) {
+            return <EmptyState message="No public refinement analytics data for the selected period" />;
+          }
+
+          const summary = publicRefinements.summary;
+          const providerRows = publicRefinements.byProvider ?? [];
+          const sourceRows = publicRefinements.bySource ?? [];
+          const modelRows = publicRefinements.byModel ?? [];
+          const presetRows = publicRefinements.byPreset ?? [];
+          const breakdownRows = [
+            ...providerRows.map((row) => ({ label: `Provider: ${row.provider}`, count: row.count })),
+            ...sourceRows.map((row) => ({ label: `Source: ${row.source}`, count: row.count })),
+            ...modelRows.slice(0, 5).map((row) => ({ label: `Model: ${row.model}`, count: row.count })),
+            ...presetRows.slice(0, 5).map((row) => ({ label: `Preset: ${row.preset}`, count: row.count })),
+          ].slice(0, 12);
+
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 text-sm">
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Total</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{summary.total}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Successful</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{summary.successful}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Failed</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{summary.failed}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Success Rate</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">{summary.successRate}%</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Avg Response</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {summary.avgResponseTimeMs != null ? `${summary.avgResponseTimeMs}ms` : "—"}
+                  </p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                  <p className="text-gray-500 dark:text-gray-400 font-medium">Avg Length</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {summary.avgOriginalLength != null && summary.avgRefinedLength != null
+                      ? `${summary.avgOriginalLength} → ${summary.avgRefinedLength}`
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {publicRefinements.timeSeries.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={publicRefinements.timeSeries}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="total" stroke="#8b5cf6" name="Total public refines" />
+                    <Line type="monotone" dataKey="successful" stroke="#22c55e" name="Successful" />
+                    <Line type="monotone" dataKey="failed" stroke="#ef4444" name="Failed" />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No public refinement time series data.</p>
+              )}
+
+              {breakdownRows.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={breakdownRows} layout="vertical" margin={{ left: 120 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="label" width={120} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="count" fill="#06b6d4" name="Calls" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : null}
             </div>
           );
         })()}

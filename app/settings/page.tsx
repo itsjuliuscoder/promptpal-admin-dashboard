@@ -15,7 +15,9 @@ import PageHeader from "@/components/shared/PageHeader";
 import SectionCard from "@/components/shared/SectionCard";
 import ErrorState from "@/components/shared/ErrorState";
 import { CardSkeleton } from "@/components/shared/LoadingSkeleton";
-import SectionWorkspace, { WorkspaceSectionItem } from "@/components/shared/SectionWorkspace";
+import SectionWorkspace, {
+  WorkspaceSectionItem,
+} from "@/components/shared/SectionWorkspace";
 import { PreviewNotice, ToggleCard } from "@/components/shared/AdminWidgets";
 import { useSectionQueryState } from "@/lib/hooks/useSectionQueryState";
 import { adminService } from "@/lib/services/adminService";
@@ -78,7 +80,7 @@ const FEATURE_FLAGS = [
   {
     key: "public_template_library",
     title: "Public template library",
-    description: "Allow all users to browse public templates.",
+    description: "Allow all users to Browse public store.",
   },
   {
     key: "chrome_extension_active",
@@ -103,11 +105,15 @@ const SECTION_ITEMS: WorkspaceSectionItem[] = [
 function normalizeSettings(raw: any): GeneralFormState {
   return {
     platformName: raw?.branding?.name || DEFAULT_GENERAL_STATE.platformName,
-    supportEmail: raw?.emailTemplates?.senderEmail || DEFAULT_GENERAL_STATE.supportEmail,
-    senderName: raw?.emailTemplates?.senderName || DEFAULT_GENERAL_STATE.senderName,
-    footerText: raw?.emailTemplates?.footerText || DEFAULT_GENERAL_STATE.footerText,
+    supportEmail:
+      raw?.emailTemplates?.senderEmail || DEFAULT_GENERAL_STATE.supportEmail,
+    senderName:
+      raw?.emailTemplates?.senderName || DEFAULT_GENERAL_STATE.senderName,
+    footerText:
+      raw?.emailTemplates?.footerText || DEFAULT_GENERAL_STATE.footerText,
     logoUrl: raw?.branding?.logoUrl || DEFAULT_GENERAL_STATE.logoUrl,
-    primaryColor: raw?.branding?.primaryColor || DEFAULT_GENERAL_STATE.primaryColor,
+    primaryColor:
+      raw?.branding?.primaryColor || DEFAULT_GENERAL_STATE.primaryColor,
     platformUrl: DEFAULT_GENERAL_STATE.platformUrl,
     adminUrl: DEFAULT_GENERAL_STATE.adminUrl,
     timezone: DEFAULT_GENERAL_STATE.timezone,
@@ -132,25 +138,34 @@ function normalizeFlags(rawFlags: any[]): FeatureFlagState {
 
 export default function AdminSettingsPage() {
   const sectionIds = useMemo(() => SECTION_ITEMS.map((item) => item.id), []);
-  const { activeSection, setActiveSection } = useSectionQueryState(sectionIds, "general");
+  const { activeSection, setActiveSection } = useSectionQueryState(
+    sectionIds,
+    "general",
+  );
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [banner, setBanner] = useState<{ type: "success" | "error"; message: string } | null>(
-    null
-  );
+  const [banner, setBanner] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const [rawSettings, setRawSettings] = useState<any>(null);
-  const [generalForm, setGeneralForm] = useState<GeneralFormState>(DEFAULT_GENERAL_STATE);
-  const [generalInitial, setGeneralInitial] = useState<GeneralFormState>(DEFAULT_GENERAL_STATE);
+  const [generalForm, setGeneralForm] = useState<GeneralFormState>(
+    DEFAULT_GENERAL_STATE,
+  );
+  const [generalInitial, setGeneralInitial] = useState<GeneralFormState>(
+    DEFAULT_GENERAL_STATE,
+  );
   const [platformFlags, setPlatformFlags] = useState<FeatureFlagState>(() =>
-    normalizeFlags([])
+    normalizeFlags([]),
   );
   const [platformInitial, setPlatformInitial] = useState<FeatureFlagState>(() =>
-    normalizeFlags([])
+    normalizeFlags([]),
   );
-  const [authPreview, setAuthPreview] = useState<AuthPreviewState>(DEFAULT_AUTH_PREVIEW);
+  const [authPreview, setAuthPreview] =
+    useState<AuthPreviewState>(DEFAULT_AUTH_PREVIEW);
 
   const loadSettings = async () => {
     try {
@@ -162,7 +177,11 @@ export default function AdminSettingsPage() {
       ]);
 
       const settingsData = settingsRes?.data || settingsRes || {};
-      const flagsData = Array.isArray(flagsRes?.data) ? flagsRes.data : Array.isArray(flagsRes) ? flagsRes : [];
+      const flagsData = Array.isArray(flagsRes?.data)
+        ? flagsRes.data
+        : Array.isArray(flagsRes)
+          ? flagsRes
+          : [];
 
       const normalizedSettings = normalizeSettings(settingsData);
       const normalizedFlags = normalizeFlags(flagsData);
@@ -184,9 +203,14 @@ export default function AdminSettingsPage() {
     loadSettings();
   }, []);
 
-  const generalChanged = JSON.stringify(generalForm) !== JSON.stringify(generalInitial);
-  const platformChanged = JSON.stringify(platformFlags) !== JSON.stringify(platformInitial);
-  const previewOnly = activeSection === "auth" || activeSection === "email" || activeSection === "danger";
+  const generalChanged =
+    JSON.stringify(generalForm) !== JSON.stringify(generalInitial);
+  const platformChanged =
+    JSON.stringify(platformFlags) !== JSON.stringify(platformInitial);
+  const previewOnly =
+    activeSection === "auth" ||
+    activeSection === "email" ||
+    activeSection === "danger";
 
   const canSave =
     !saving &&
@@ -194,7 +218,11 @@ export default function AdminSettingsPage() {
       (activeSection === "platform" && platformChanged));
 
   const saveLabel =
-    activeSection === "platform" ? "Save changes" : activeSection === "general" ? "Save changes" : "Save unavailable";
+    activeSection === "platform"
+      ? "Save changes"
+      : activeSection === "general"
+        ? "Save changes"
+        : "Save unavailable";
 
   const handleCancel = () => {
     setBanner(null);
@@ -251,11 +279,14 @@ export default function AdminSettingsPage() {
             adminService.updateFeatureFlag(flag.key, {
               enabled: platformFlags[flag.key],
               description: flag.description,
-            })
-          )
+            }),
+          ),
         );
         setPlatformInitial(platformFlags);
-        setBanner({ type: "success", message: "Platform feature flags updated." });
+        setBanner({
+          type: "success",
+          message: "Platform feature flags updated.",
+        });
       }
     } catch (saveError: any) {
       console.error("Failed to save settings", saveError);
@@ -287,7 +318,11 @@ export default function AdminSettingsPage() {
         onClick={handleSave}
         disabled={!canSave}
       >
-        {saving ? <FiRefreshCw className="animate-spin" size={16} /> : <FiSave size={16} />}
+        {saving ? (
+          <FiRefreshCw className="animate-spin" size={16} />
+        ) : (
+          <FiSave size={16} />
+        )}
         {saveLabel}
       </button>
     </>
@@ -330,7 +365,12 @@ export default function AdminSettingsPage() {
         eyebrow="Operations"
         title="Settings"
         description="Manage branding, platform flags, and operational defaults."
-        metadata={<span className="admin-stat-pill">Section: {SECTION_ITEMS.find((item) => item.id === activeSection)?.label}</span>}
+        metadata={
+          <span className="admin-stat-pill">
+            Section:{" "}
+            {SECTION_ITEMS.find((item) => item.id === activeSection)?.label}
+          </span>
+        }
         actions={actions}
       />
 
@@ -375,7 +415,8 @@ export default function AdminSettingsPage() {
                     }
                   />
                   <p className="admin-field-hint">
-                    Shown in the admin header and any backend-driven email sender references.
+                    Shown in the admin header and any backend-driven email
+                    sender references.
                   </p>
                 </div>
 
@@ -396,7 +437,8 @@ export default function AdminSettingsPage() {
                     }
                   />
                   <p className="admin-field-hint">
-                    Persists to the current sender email field used by backend-managed email templates.
+                    Persists to the current sender email field used by
+                    backend-managed email templates.
                   </p>
                 </div>
 
@@ -459,16 +501,29 @@ export default function AdminSettingsPage() {
                   <label className="admin-field-label" htmlFor="platform-url">
                     Platform URL
                   </label>
-                  <input id="platform-url" className="admin-input" value={generalForm.platformUrl} readOnly />
+                  <input
+                    id="platform-url"
+                    className="admin-input"
+                    value={generalForm.platformUrl}
+                    readOnly
+                  />
                 </div>
                 <div className="admin-field-stack">
                   <label className="admin-field-label" htmlFor="admin-url">
                     Admin panel URL
                   </label>
-                  <input id="admin-url" className="admin-input" value={generalForm.adminUrl} readOnly />
+                  <input
+                    id="admin-url"
+                    className="admin-input"
+                    value={generalForm.adminUrl}
+                    readOnly
+                  />
                 </div>
                 <div className="admin-field-stack md:col-span-2">
-                  <label className="admin-field-label" htmlFor="default-timezone">
+                  <label
+                    className="admin-field-label"
+                    htmlFor="default-timezone"
+                  >
                     Default user timezone
                   </label>
                   <input
@@ -481,11 +536,20 @@ export default function AdminSettingsPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <button type="button" className="admin-button admin-button-primary" onClick={handleSave} disabled={!canSave}>
+                <button
+                  type="button"
+                  className="admin-button admin-button-primary"
+                  onClick={handleSave}
+                  disabled={!canSave}
+                >
                   <FiSave size={16} />
                   Save changes
                 </button>
-                <button type="button" className="admin-button admin-button-secondary" onClick={handleCancel}>
+                <button
+                  type="button"
+                  className="admin-button admin-button-secondary"
+                  onClick={handleCancel}
+                >
                   Cancel
                 </button>
               </div>
@@ -506,17 +570,29 @@ export default function AdminSettingsPage() {
                   description={flag.description}
                   checked={platformFlags[flag.key]}
                   onChange={(checked) =>
-                    setPlatformFlags((current) => ({ ...current, [flag.key]: checked }))
+                    setPlatformFlags((current) => ({
+                      ...current,
+                      [flag.key]: checked,
+                    }))
                   }
                 />
               ))}
 
               <div className="flex flex-wrap gap-3 pt-2">
-                <button type="button" className="admin-button admin-button-primary" onClick={handleSave} disabled={!canSave}>
+                <button
+                  type="button"
+                  className="admin-button admin-button-primary"
+                  onClick={handleSave}
+                  disabled={!canSave}
+                >
                   <FiSave size={16} />
                   Save changes
                 </button>
-                <button type="button" className="admin-button admin-button-secondary" onClick={handleCancel}>
+                <button
+                  type="button"
+                  className="admin-button admin-button-secondary"
+                  onClick={handleCancel}
+                >
                   Cancel
                 </button>
               </div>
@@ -534,7 +610,10 @@ export default function AdminSettingsPage() {
 
               <div className="admin-field-grid">
                 <div className="admin-field-stack">
-                  <label className="admin-field-label" htmlFor="session-timeout">
+                  <label
+                    className="admin-field-label"
+                    htmlFor="session-timeout"
+                  >
                     Session timeout (minutes)
                   </label>
                   <input
@@ -548,7 +627,9 @@ export default function AdminSettingsPage() {
                       }))
                     }
                   />
-                  <p className="admin-field-hint">0 = never expire. Default is 1440 (24 hours).</p>
+                  <p className="admin-field-hint">
+                    0 = never expire. Default is 1440 (24 hours).
+                  </p>
                 </div>
                 <div className="admin-field-stack">
                   <label className="admin-field-label" htmlFor="max-attempts">
@@ -566,7 +647,8 @@ export default function AdminSettingsPage() {
                     }
                   />
                   <p className="admin-field-hint">
-                    Accounts are temporarily locked after this many failed attempts.
+                    Accounts are temporarily locked after this many failed
+                    attempts.
                   </p>
                 </div>
               </div>
@@ -626,7 +708,8 @@ export default function AdminSettingsPage() {
 
       {previewOnly ? (
         <div className="admin-preview-notice">
-          Save is intentionally disabled for this section because the backend does not expose persistence for it yet.
+          Save is intentionally disabled for this section because the backend
+          does not expose persistence for it yet.
         </div>
       ) : null}
     </div>

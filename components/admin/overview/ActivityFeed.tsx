@@ -3,10 +3,11 @@
 import React from "react";
 import { FiActivity, FiArrowUpRight } from "react-icons/fi";
 import SectionCard from "@/components/shared/SectionCard";
+import { formatEventLabel } from "@/lib/formatEventLabel";
 
 interface ActivityEvent {
   type: string;
-  label: string;
+  label: unknown;
   createdAt: string;
 }
 
@@ -52,7 +53,7 @@ export default function ActivityFeed({ events }: { events: ActivityEvent[] }) {
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-[color:var(--admin-text)]">
-                        {event.label}
+                        {formatEventLabel(event.label)}
                       </p>
                       <p className="mt-1 text-xs font-medium uppercase tracking-[0.14em] text-[color:var(--admin-text-faint)]">
                         {getTypeLabel(event.type)}

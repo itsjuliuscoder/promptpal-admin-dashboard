@@ -66,6 +66,29 @@ export interface RefineChatSessionsData {
   pages: number;
 }
 
+export interface PublicRefinementAnalyticsData {
+  summary: {
+    total: number;
+    successful: number;
+    failed: number;
+    successRate: number;
+    avgResponseTimeMs: number | null;
+    avgOriginalLength: number | null;
+    avgRefinedLength: number | null;
+    windowDays: number;
+  };
+  timeSeries: Array<{
+    date: string;
+    total: number;
+    successful: number;
+    failed: number;
+  }>;
+  byProvider: Array<{ provider: string; count: number }>;
+  byModel: Array<{ model: string; count: number }>;
+  byPreset: Array<{ preset: string; count: number }>;
+  bySource: Array<{ source: string; count: number }>;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   pagination?: {
@@ -208,6 +231,10 @@ export const adminService = {
   },
   getAnalyticsRefineAgent: async (days: number) => {
     const response = await axios.get("/admin/analytics/refine-agent", { params: { days } });
+    return response.data;
+  },
+  getAnalyticsPublicRefinements: async (days: number): Promise<{ success: boolean; data: PublicRefinementAnalyticsData }> => {
+    const response = await axios.get("/admin/analytics/public-refinements", { params: { days } });
     return response.data;
   },
   getAnalyticsTemplateAdoption: async () => {
