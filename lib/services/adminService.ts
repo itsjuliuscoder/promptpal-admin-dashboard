@@ -89,6 +89,20 @@ export interface PublicRefinementAnalyticsData {
   bySource: Array<{ source: string; count: number }>;
 }
 
+export interface AdminOverviewData {
+  kpis: Array<{ key: string; label: string; value: number; unit?: string }>;
+  promptsByStatus?: Record<string, number>;
+  platformStatus: {
+    authStatus: { googleOAuth: boolean; emailAuth: boolean };
+    apiUptimeSeconds: number;
+    backgroundJobs: { status: string; note?: string };
+    extensionVersionHealth: { currentVersion?: string | null; lastReportedAt?: string | null };
+  };
+  publicRefineRequests30d: number;
+  activityFeed: Array<{ type: string; label: string; createdAt: string }>;
+  generatedAt?: string;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   pagination?: {
@@ -118,7 +132,7 @@ export interface AdminFeedbackItem {
 }
 
 export const adminService = {
-  getOverview: async () => {
+  getOverview: async (): Promise<AdminOverviewData> => {
     const response = await axios.get("/admin/overview");
     return response.data.data;
   },

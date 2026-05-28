@@ -8,18 +8,7 @@ import ActivityFeed from "@/components/admin/overview/ActivityFeed";
 import PageHeader from "@/components/shared/PageHeader";
 import ErrorState from "@/components/shared/ErrorState";
 import SectionCard from "@/components/shared/SectionCard";
-import { adminService } from "@/lib/services/adminService";
-
-interface AdminOverviewData {
-  kpis: Array<{ key: string; label: string; value: number; unit?: string }>;
-  platformStatus: {
-    authStatus: { googleOAuth: boolean; emailAuth: boolean };
-    apiUptimeSeconds: number;
-    backgroundJobs: { status: string; note?: string };
-    extensionVersionHealth: { currentVersion?: string | null; lastReportedAt?: string | null };
-  };
-  activityFeed: Array<{ type: string; label: string; createdAt: string }>;
-}
+import { adminService, type AdminOverviewData } from "@/lib/services/adminService";
 
 export default function AdminOverviewPage() {
   const [data, setData] = useState<AdminOverviewData | null>(null);
@@ -51,8 +40,8 @@ export default function AdminOverviewPage() {
         />
         <section className="space-y-4">
           <div className="h-4 w-24 max-w-xs rounded-full bg-[color:var(--admin-panel-muted)]" />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="admin-kpi-card animate-pulse">
                 <div className="mb-3 h-4 w-24 rounded-full bg-[color:var(--admin-panel-muted)]"></div>
                 <div className="h-10 w-20 rounded-full bg-[color:var(--admin-panel-muted)]"></div>
@@ -108,8 +97,15 @@ export default function AdminOverviewPage() {
     );
   }
 
-  const keyMetrics = data.kpis.slice(0, 4);
-  const productUsage = data.kpis.slice(4);
+  const publicRefineMetric = {
+    key: "public_refine_requests_30d",
+    label: "Public Refine API (30d)",
+    value: data.publicRefineRequests30d ?? 0,
+    unit: undefined,
+  };
+  const baseKeyMetrics = data.kpis.slice(0, 4);
+  const keyMetrics = [...baseKeyMetrics, publicRefineMetric];
+  const productUsage = data.kpis.filter((kpi) => kpi.key !== "public_refine_requests_30d").slice(4);
   const lastUpdatedLabel = lastUpdated
     ? new Date(lastUpdated).toLocaleTimeString(undefined, {
         hour: "numeric",
@@ -143,6 +139,13 @@ export default function AdminOverviewPage() {
     if (key.includes("active (30")) {
       return {
         caption: "Monthly retained users",
+        tone: "neutral" as const,
+        emphasis: "secondary" as const,
+      };
+    }
+    if (key.includes("public refine api (30")) {
+      return {
+        caption: "Requests to /api/public/refine",
         tone: "neutral" as const,
         emphasis: "secondary" as const,
       };
@@ -185,7 +188,7 @@ export default function AdminOverviewPage() {
         <h2 id="key-metrics-heading" className="admin-eyebrow">
           Key metrics
         </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
           {keyMetrics.map((kpi, index) => {
             const meta = getMetricMeta(kpi.label);
             return (

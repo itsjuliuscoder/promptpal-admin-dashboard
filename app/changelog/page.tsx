@@ -12,6 +12,8 @@ import { TableSkeleton } from "@/components/shared/LoadingSkeleton";
 import ErrorState from "@/components/shared/ErrorState";
 import { changelogApi, type ChangelogEntry } from "@/lib/changelog-api";
 
+const ITEMS_PER_PAGE = 20;
+
 const CATEGORY_LABELS: Record<string, string> = {
   new_feature: "New Feature",
   improvement: "Improvement",
@@ -42,7 +44,7 @@ export default function AdminChangelogPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await changelogApi.list({ page, limit: 20, status: status || undefined });
+      const res = await changelogApi.list({ page, limit: ITEMS_PER_PAGE, status: status || undefined });
       setEntries(res.data);
       setTotalPages(res.totalPages);
       setTotal(res.total);
@@ -256,6 +258,8 @@ export default function AdminChangelogPage() {
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
+            totalItems={total}
+            itemsPerPage={ITEMS_PER_PAGE}
             onPageChange={setCurrentPage}
           />
         </>
