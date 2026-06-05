@@ -92,6 +92,11 @@ const FEATURE_FLAGS = [
     title: "Maintenance mode",
     description: "Show a maintenance experience to non-admin users.",
   },
+  {
+    key: "personal_brain_runtime_beta",
+    title: "Personal Brain runtime (beta)",
+    description: "Enable chat, memory, actions, and routines for Personal Brain.",
+  },
 ];
 
 const SECTION_ITEMS: WorkspaceSectionItem[] = [

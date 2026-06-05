@@ -26,6 +26,7 @@ const TITLE_MAP: Record<string, string> = {
   "/admins": "Admins",
   "/settings": "Settings",
   "/refine-chat": "Refine Agent",
+  "/personal-brain": "Personal Brain",
 };
 
 const buildBreadcrumbs = (pathname: string) => {

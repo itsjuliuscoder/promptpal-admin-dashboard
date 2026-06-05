@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import SectionCard from "@/components/shared/SectionCard";
 import DataTable from "@/components/shared/DataTable";
-import { adminService } from "@/lib/services/adminService";
+import StatusBadge from "@/components/shared/StatusBadge";
+import {
+  adminService,
+  PersonalBrainUserDetailData,
+} from "@/lib/services/adminService";
 
 export default function AdminUserProfilePage() {
   const params = useParams();
@@ -15,6 +20,7 @@ export default function AdminUserProfilePage() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [billing, setBilling] = useState<any>(null);
   const [activity, setActivity] = useState<any[]>([]);
+  const [personalBrain, setPersonalBrain] = useState<PersonalBrainUserDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [blockSaving, setBlockSaving] = useState(false);
@@ -26,13 +32,14 @@ export default function AdminUserProfilePage() {
       setLoading(true);
       setError(null);
       try {
-        const [userRes, promptsRes, sessionsRes, billingRes, activityRes] =
+        const [userRes, promptsRes, sessionsRes, billingRes, activityRes, brainRes] =
           await Promise.allSettled([
             adminService.getUserById(userId),
             adminService.getUserPrompts(userId, { page: 1, limit: 5 }),
             adminService.getUserSessions(userId, { page: 1, limit: 5 }),
             adminService.getUserBilling(userId),
             adminService.getUserActivity(userId, { page: 1, limit: 10 }),
+            adminService.getPersonalBrainByUserId(userId),
           ]);
 
         // Handle user data (required)
@@ -61,6 +68,9 @@ export default function AdminUserProfilePage() {
         }
         if (activityRes.status === "fulfilled") {
           setActivity(activityRes.value.data?.usageLogs || []);
+        }
+        if (brainRes.status === "fulfilled") {
+          setPersonalBrain(brainRes.value.data);
         }
       } catch (error: any) {
         console.error("Failed to load user profile", error);
@@ -176,6 +186,90 @@ export default function AdminUserProfilePage() {
             </button>
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Personal Brain">
+        {personalBrain ? (
+          personalBrain.exists && personalBrain.brain ? (
+            <div className="space-y-4 text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge label={String(personalBrain.brain.status)} />
+                <StatusBadge label={`Runtime: ${String(personalBrain.brain.runtimeStatus)}`} />
+                <span>
+                  Global runtime beta:{" "}
+                  {personalBrain.runtimeBetaEnabled ? "enabled" : "disabled"}
+                </span>
+                <Link
+                  href="/personal-brain"
+                  className="text-sm font-medium text-[#A84C34] hover:underline"
+                >
+                  Open Personal Brain monitor →
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                  <p className="text-xs text-gray-500">Chat (month)</p>
+                  <p className="text-xl font-bold">{personalBrain.usage.chatMessagesMonth}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                  <p className="text-xs text-gray-500">Templates (month)</p>
+                  <p className="text-xl font-bold">
+                    {personalBrain.usage.templatesGeneratedMonth}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                  <p className="text-xs text-gray-500">Connected tools</p>
+                  <p className="text-xl font-bold">
+                    {personalBrain.usage.connectedIntegrations ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                  <p className="text-xs text-gray-500">Pending actions</p>
+                  <p className="text-xl font-bold">
+                    {Number(personalBrain.brain.pendingActionCount) || 0}
+                  </p>
+                </div>
+              </div>
+              {personalBrain.brain.lastError ? (
+                <p className="text-red-600 dark:text-red-400">
+                  <strong>Last error:</strong> {String(personalBrain.brain.lastError)}
+                </p>
+              ) : null}
+              <p>
+                <strong>Last full sync:</strong>{" "}
+                {personalBrain.brain.lastFullSyncAt
+                  ? new Date(String(personalBrain.brain.lastFullSyncAt)).toLocaleString()
+                  : "Never"}
+              </p>
+              {personalBrain.integrations.length > 0 ? (
+                <DataTable
+                  rows={personalBrain.integrations}
+                  columns={[
+                    { key: "connectorId", label: "Connector" },
+                    { key: "connectionStatus", label: "Connection" },
+                    { key: "ingestionStatus", label: "Ingestion" },
+                    {
+                      key: "lastIngestionAt",
+                      label: "Last ingestion",
+                      render: (value) =>
+                        value ? new Date(String(value)).toLocaleString() : "—",
+                    },
+                  ]}
+                />
+              ) : (
+                <p>No integrations recorded for this user.</p>
+              )}
+            </div>
+          ) : (
+            <p>
+              No Personal Brain document for this user yet. Usage this month:{" "}
+              {personalBrain.usage.chatMessagesMonth} chat messages,{" "}
+              {personalBrain.usage.templatesGeneratedMonth} templates generated.
+            </p>
+          )
+        ) : (
+          <p className="text-gray-500">Personal Brain data unavailable.</p>
+        )}
       </SectionCard>
 
       {activityMetrics && (

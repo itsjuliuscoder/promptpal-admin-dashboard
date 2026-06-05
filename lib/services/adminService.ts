@@ -66,6 +66,98 @@ export interface RefineChatSessionsData {
   pages: number;
 }
 
+// ---------------------------------------------------------------------------
+// Personal Brain monitoring types (admin /personal-brain API)
+// ---------------------------------------------------------------------------
+
+export interface PersonalBrainSummary {
+  totalBrains: number;
+  activeBrains: number;
+  initializedBrains: number;
+  errorBrains: number;
+  staleBrains: number;
+  connectedIntegrations: number;
+  chatMessagesMonth: number;
+  templatesGeneratedMonth: number;
+  syncsToday: number;
+  runtimeBetaEnabled: boolean;
+}
+
+export interface PersonalBrainByStatus {
+  status: string;
+  count: number;
+}
+
+export interface PersonalBrainByConnector {
+  connectorId: string;
+  connections: number;
+}
+
+export interface PersonalBrainTimeSeriesPoint {
+  date: string;
+  brainsUpdated: number;
+  syncs: number;
+}
+
+export interface PersonalBrainStatsData {
+  summary: PersonalBrainSummary;
+  byStatus: PersonalBrainByStatus[];
+  byConnector: PersonalBrainByConnector[];
+  timeSeries: PersonalBrainTimeSeriesPoint[];
+}
+
+export interface PersonalBrainUserRow {
+  brainId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPlan: string;
+  status: string;
+  connectorCount: number;
+  staleConnectors: number;
+  pendingTemplatesCount: number;
+  activeRecommendationCount: number;
+  pendingActionCount: number;
+  memoryEpisodes: number;
+  lastFullSyncAt: string | null;
+  lastError: string | null;
+  failedPipelineStages: string[];
+  runtimeStatus: string;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface PersonalBrainUsersData {
+  brains: PersonalBrainUserRow[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface PersonalBrainSyncIssue extends PersonalBrainUserRow {
+  pipelineErrors: Array<{ stage: string; message: string | null }>;
+  errorConnectors: string[];
+}
+
+export interface PersonalBrainSyncIssuesData {
+  issues: PersonalBrainSyncIssue[];
+  total: number;
+  page: number;
+  pages: number;
+}
+
+export interface PersonalBrainUserDetailData {
+  exists: boolean;
+  runtimeBetaEnabled: boolean;
+  brain?: Record<string, unknown>;
+  integrations: Array<Record<string, unknown>>;
+  usage: {
+    chatMessagesMonth: number;
+    templatesGeneratedMonth: number;
+    connectedIntegrations?: number;
+  };
+}
+
 export interface PublicRefinementAnalyticsData {
   summary: {
     total: number;
@@ -129,6 +221,70 @@ export interface AdminFeedbackItem {
   status: "open" | "in-progress" | "resolved" | "closed";
   createdAt: string;
   updatedAt: string;
+}
+
+export type CreatorApplicationStatus = "pending" | "invited" | "rejected";
+export type CreatorSubmissionStatus = "pending" | "approved" | "rejected";
+
+export interface CreatorApplication {
+  id: string;
+  name: string;
+  email: string;
+  primaryPlatform: "x" | "instagram" | "tiktok";
+  handle: string;
+  followerRange: string;
+  contentNiche: string[];
+  motivation: string;
+  recentPostUrl: string;
+  status: CreatorApplicationStatus;
+  reviewerNotes: string;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatorSubmissionBrief {
+  id: string;
+  title: string;
+  pointsReward: number;
+  platform: string;
+  format: string;
+}
+
+export interface CreatorSubmissionCreator {
+  id: string;
+  name: string;
+  email: string;
+  tier: string;
+}
+
+export interface CreatorSubmission {
+  id: string;
+  creatorId: string;
+  creator: CreatorSubmissionCreator | null;
+  briefId: string;
+  brief: CreatorSubmissionBrief | null;
+  platform: string;
+  contentUrl: string;
+  captionText: string;
+  screenshotUrl: string | null;
+  status: CreatorSubmissionStatus;
+  pointsAwarded: number;
+  reviewerNotes: string;
+  submittedAt: string;
+  reviewedAt: string | null;
+}
+
+export interface CreatorInviteResult {
+  invitation: {
+    id: string;
+    email: string;
+    applicationId: string | null;
+    status: string;
+    expiresAt: string;
+    acceptedAt?: string | null;
+    activationUrl?: string;
+  };
 }
 
 export const adminService = {
@@ -276,6 +432,35 @@ export const adminService = {
     sort?: string;
   }): Promise<{ success: boolean; data: RefineChatSessionsData }> => {
     const response = await axios.get("/admin/refine-chat/sessions", { params });
+    return response.data;
+  },
+  getPersonalBrainStats: async (
+    days: number
+  ): Promise<{ success: boolean; data: PersonalBrainStatsData }> => {
+    const response = await axios.get("/admin/personal-brain/stats", { params: { days } });
+    return response.data;
+  },
+  getPersonalBrainUsers: async (params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    days?: number;
+  }): Promise<{ success: boolean; data: PersonalBrainUsersData }> => {
+    const response = await axios.get("/admin/personal-brain/users", { params });
+    return response.data;
+  },
+  getPersonalBrainSyncIssues: async (params: {
+    page?: number;
+    limit?: number;
+  }): Promise<{ success: boolean; data: PersonalBrainSyncIssuesData }> => {
+    const response = await axios.get("/admin/personal-brain/sync-issues", { params });
+    return response.data;
+  },
+  getPersonalBrainByUserId: async (
+    userId: string
+  ): Promise<{ success: boolean; data: PersonalBrainUserDetailData }> => {
+    const response = await axios.get(`/admin/personal-brain/users/${userId}`);
     return response.data;
   },
   getBillingRevenue: async () => {
@@ -487,5 +672,43 @@ export const adminService = {
   cancelInvitation: async (adminId: string) => {
     const response = await axios.delete(`/admin/admins/${adminId}/cancel-invitation`);
     return response.data;
+  },
+  getCreatorApplications: async (params?: { status?: string; limit?: number }) => {
+    const response = await axios.get("/admin/creator-applications", { params });
+    return response.data as { applications: CreatorApplication[] };
+  },
+  inviteCreatorEmail: async (email: string) => {
+    const response = await axios.post("/admin/creator-applications/invite", { email });
+    return response.data as CreatorInviteResult;
+  },
+  inviteCreatorApplication: async (applicationId: string) => {
+    const response = await axios.post(
+      `/admin/creator-applications/${applicationId}/invite`
+    );
+    return response.data as CreatorInviteResult;
+  },
+  rejectCreatorApplication: async (
+    applicationId: string,
+    reviewerNotes?: string
+  ) => {
+    const response = await axios.post(
+      `/admin/creator-applications/${applicationId}/reject`,
+      { reviewerNotes: reviewerNotes || "" }
+    );
+    return response.data as { application: CreatorApplication };
+  },
+  getCreatorSubmissions: async (params?: { status?: string; limit?: number }) => {
+    const response = await axios.get("/admin/creator-submissions", { params });
+    return response.data as { submissions: CreatorSubmission[] };
+  },
+  reviewCreatorSubmission: async (
+    submissionId: string,
+    payload: { status: "approved" | "rejected"; reviewerNotes?: string }
+  ) => {
+    const response = await axios.post(
+      `/admin/creator-submissions/${submissionId}/review`,
+      payload
+    );
+    return response.data as { submission: CreatorSubmission };
   },
 };
