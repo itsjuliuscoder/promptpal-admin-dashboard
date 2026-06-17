@@ -138,6 +138,7 @@ export default function AdminUserProfilePage() {
           <p><strong>Email:</strong> {profile.email}</p>
           <p><strong>Signup Provider:</strong> {profile.authProvider || "local"}</p>
           <p><strong>Plan:</strong> {profile.subscriptionStatus || "free"}</p>
+          <p><strong>Signup Date:</strong> {profile.createdAt ? new Date(profile.createdAt).toLocaleString() : "N/A"}</p>
           <p><strong>Account Status:</strong> {profile.accountStatus || (profile.blocked ? "suspended" : "active")}</p>
           <p><strong>Last Login:</strong> {profile.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString() : "Never"}</p>
           <p><strong>Plan Start:</strong> {profile.planStartDate ? new Date(profile.planStartDate).toLocaleDateString() : "N/A"}</p>
