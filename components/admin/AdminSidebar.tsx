@@ -93,7 +93,7 @@ export default function AdminSidebar({
           onClick={() => setIsMobileMenuOpen?.(false)}
           className="flex min-w-0 items-center gap-3"
         >
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[color:var(--admin-accent)] text-base font-semibold text-white shadow-[0_10px_24px_rgb(201_91_43_/_0.22)]">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[color:var(--admin-accent)] text-base font-semibold text-white shadow-[0_10px_24px_rgb(122_66_252_/_0.22)]">
             P
           </div>
           {isExpanded ? (
@@ -137,7 +137,7 @@ export default function AdminSidebar({
                       onClick={() => setIsMobileMenuOpen?.(false)}
                       className={`group flex min-h-[48px] items-center gap-3 rounded-2xl border px-3 py-3 text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[color:var(--admin-accent)] focus:ring-offset-2 focus:ring-offset-[color:var(--admin-bg)] ${
                         isActive
-                          ? "border-[color:var(--admin-border-strong)] bg-[color:var(--admin-accent-soft)] text-[color:var(--admin-accent-strong)] shadow-[0_8px_24px_rgb(201_91_43_/_0.08)]"
+                          ? "border-[color:var(--admin-border-strong)] bg-[color:var(--admin-accent-soft)] text-[color:var(--admin-accent-strong)] shadow-[0_8px_24px_rgb(122_66_252_/_0.08)]"
                           : "border-transparent text-[color:var(--admin-text-soft)] hover:border-[color:var(--admin-border)] hover:bg-[color:var(--admin-panel)] hover:text-[color:var(--admin-text)]"
                       }`}
                     >

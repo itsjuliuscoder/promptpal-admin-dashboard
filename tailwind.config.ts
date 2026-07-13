@@ -10,7 +10,7 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          DEFAULT: "#A84C34",
+          DEFAULT: "#7A42FC",
         },
         admin: {
           bg: "#f4f1ea",
@@ -19,7 +19,7 @@ const config: Config = {
           border: "#ddd4c6",
           text: "#201b16",
           soft: "#655d53",
-          accent: "#c95b2b",
+          accent: "#7A42FC",
           success: "#1f7a4f",
           warning: "#b7791f",
           danger: "#ba453b",

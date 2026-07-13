@@ -13,9 +13,9 @@
   --admin-text: #201b16;
   --admin-text-soft: #655d53;
   --admin-text-faint: #8c8378;
-  --admin-accent: #c95b2b;
-  --admin-accent-strong: #9f431c;
-  --admin-accent-soft: #f4dfd2;
+  --admin-accent: #7a42fc;
+  --admin-accent-strong: #6525ea;
+  --admin-accent-soft: #efe7ff;
   --admin-success: #1f7a4f;
   --admin-success-soft: #dff3e8;
   --admin-warning: #b7791f;
@@ -43,9 +43,9 @@
     --admin-text: #f5f3ef;
     --admin-text-soft: #c8bfb4;
     --admin-text-faint: #9f988f;
-    --admin-accent: #e0834d;
-    --admin-accent-strong: #f2a16d;
-    --admin-accent-soft: rgba(224, 131, 77, 0.14);
+    --admin-accent: #b182ff;
+    --admin-accent-strong: #cdaffe;
+    --admin-accent-soft: rgba(177, 130, 255, 0.16);
     --admin-success: #5bd195;
     --admin-success-soft: rgba(91, 209, 149, 0.14);
     --admin-warning: #f1bb52;
@@ -64,8 +64,8 @@ html {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgb(201 91 43 / 0.08), transparent 28%),
-    radial-gradient(circle at top right, rgb(183 121 31 / 0.08), transparent 24%),
+    radial-gradient(circle at top left, rgb(122 66 252 / 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgb(101 37 234 / 0.08), transparent 24%),
     var(--admin-bg);
   color: var(--admin-text);
   font-family: "Avenir Next", "Manrope", "Segoe UI", sans-serif;
@@ -81,7 +81,7 @@ a {
 }
 
 ::selection {
-  background: rgb(201 91 43 / 0.22);
+  background: rgb(122 66 252 / 0.22);
 }
 
 @layer base {
@@ -135,7 +135,7 @@ a {
   .admin-button-primary {
     background: var(--admin-accent);
     color: white;
-    box-shadow: 0 10px 24px rgb(201 91 43 / 0.22);
+    box-shadow: 0 10px 24px rgb(122 66 252 / 0.22);
   }
 
   .admin-button-primary:hover {
@@ -254,7 +254,7 @@ a {
     position: absolute;
     inset: auto 0 0 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgb(201 91 43 / 0.28), transparent);
+    background: linear-gradient(90deg, transparent, rgb(122 66 252 / 0.28), transparent);
   }
 
   .admin-stat-pill {
