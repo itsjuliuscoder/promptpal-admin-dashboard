@@ -287,6 +287,57 @@ export interface CreatorInviteResult {
   };
 }
 
+export interface CommunityCmsItem {
+  id: string;
+  slug?: string;
+  title?: string;
+  name?: string;
+  description?: string;
+  content?: string;
+  body?: string;
+  topicSlug?: string;
+  tags?: string[];
+  categories?: string[];
+  contentType?: string;
+  qualityState?: string;
+  moderationStatus?: string;
+  isActive?: boolean;
+  isFeatured?: boolean;
+  featuredRank?: number | null;
+  curationLabel?: string;
+  verified?: boolean;
+  official?: boolean;
+  author?: { id: string; name: string; email?: string; avatar?: string | null } | null;
+  stats?: Record<string, number>;
+  updatedAt?: string;
+  publishedAt?: string;
+}
+
+export interface CommunityCmsTopic {
+  id: string;
+  _id?: string;
+  slug: string;
+  name: string;
+  description: string;
+  icon?: string;
+  accent?: string;
+  order?: number;
+  active?: boolean;
+}
+
+export interface CommunityCmsReport {
+  id: string;
+  targetType: string;
+  targetId: string;
+  reason: string;
+  details?: string;
+  status: string;
+  reporter?: { id: string; name?: string; email?: string } | null;
+  createdAt?: string;
+  resolvedAt?: string | null;
+  resolution?: string;
+}
+
 export const adminService = {
   getOverview: async (): Promise<AdminOverviewData> => {
     const response = await axios.get("/admin/overview");
@@ -554,6 +605,62 @@ export const adminService = {
   },
   getTemplateStats: async () => {
     const response = await axios.get("/admin/templates/stats");
+    return response.data;
+  },
+  getCommunityOverview: async () => {
+    const response = await axios.get("/admin/community/overview");
+    return response.data as { success: boolean; data: { counts: Record<string, number>; featuredSlots: number } };
+  },
+  getCommunityPrompts: async (params?: Record<string, string | number | undefined>) => {
+    const response = await axios.get("/admin/community/prompts", { params });
+    return response.data as { success: boolean; items: CommunityCmsItem[]; pagination?: any };
+  },
+  updateCommunityPrompt: async (id: string, payload: Record<string, unknown>) => {
+    const response = await axios.patch(`/admin/community/prompts/${id}`, payload);
+    return response.data as { success: boolean; prompt: CommunityCmsItem };
+  },
+  getCommunityDiscussions: async (params?: Record<string, string | number | undefined>) => {
+    const response = await axios.get("/admin/community/discussions", { params });
+    return response.data as { success: boolean; items: CommunityCmsItem[]; pagination?: any };
+  },
+  updateCommunityDiscussion: async (id: string, payload: Record<string, unknown>) => {
+    const response = await axios.patch(`/admin/community/discussions/${id}`, payload);
+    return response.data as { success: boolean; discussion: CommunityCmsItem };
+  },
+  getCommunityMcpServers: async (params?: Record<string, string | number | undefined>) => {
+    const response = await axios.get("/admin/community/mcp-servers", { params });
+    return response.data as { success: boolean; items: CommunityCmsItem[]; pagination?: any };
+  },
+  updateCommunityMcpServer: async (id: string, payload: Record<string, unknown>) => {
+    const response = await axios.patch(`/admin/community/mcp-servers/${id}`, payload);
+    return response.data as { success: boolean; server: CommunityCmsItem };
+  },
+  getCommunityTopics: async () => {
+    const response = await axios.get("/admin/community/topics");
+    return response.data as { success: boolean; items: CommunityCmsTopic[] };
+  },
+  createCommunityTopic: async (payload: Record<string, unknown>) => {
+    const response = await axios.post("/admin/community/topics", payload);
+    return response.data as { success: boolean; topic: CommunityCmsTopic };
+  },
+  updateCommunityTopic: async (id: string, payload: Record<string, unknown>) => {
+    const response = await axios.patch(`/admin/community/topics/${id}`, payload);
+    return response.data as { success: boolean; topic: CommunityCmsTopic };
+  },
+  getCommunityFeatured: async () => {
+    const response = await axios.get("/admin/community/featured");
+    return response.data as { success: boolean; items: Array<CommunityCmsItem & { type: "prompt" | "discussion" | "mcp" }> };
+  },
+  updateCommunityFeatured: async (items: Array<{ type: string; id: string }>) => {
+    const response = await axios.put("/admin/community/featured", { items });
+    return response.data as { success: boolean; items: Array<CommunityCmsItem & { type: "prompt" | "discussion" | "mcp" }> };
+  },
+  getCommunityModeration: async (params?: Record<string, string | number | undefined>) => {
+    const response = await axios.get("/admin/community/moderation", { params });
+    return response.data as { success: boolean; reports: CommunityCmsReport[]; pagination?: any };
+  },
+  actOnCommunityReport: async (reportId: string, payload: { action: string; note?: string }) => {
+    const response = await axios.post(`/admin/community/moderation/${reportId}/action`, payload);
     return response.data;
   },
   getSystemAuthStatus: async () => {

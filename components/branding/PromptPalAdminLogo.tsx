@@ -8,7 +8,8 @@ type PromptPalAdminLogoProps = {
 };
 
 /**
- * Brand logo for dark backgrounds (admin login header), using raster assets from /public/images.
+ * PromptPal brand mark for the admin login header. Uses the current
+ * light-on-dark wordmark so it reads on the dark/purple header.
  */
 export default function PromptPalAdminLogo({
   className = "",
@@ -16,17 +17,17 @@ export default function PromptPalAdminLogo({
 }: PromptPalAdminLogoProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-2 ${className}`}
+      className={`flex flex-col items-center justify-center gap-2.5 ${className}`}
     >
       <Image
-        src="/images/logo-dark.png"
+        src="/images/promptpal-logo-dark.png"
         alt="PromptPal"
-        width={500}
-        height={200}
-        className="h-20 w-auto max-w-[min(100%,320px)] object-contain object-center"
+        width={240}
+        height={74}
+        className="h-9 w-auto max-w-[min(100%,240px)] object-contain object-center"
         priority={priority}
       />
-      <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">
+      <span className="text-[11px] font-bold uppercase tracking-[0.28em] text-white/60">
         Admin
       </span>
     </div>

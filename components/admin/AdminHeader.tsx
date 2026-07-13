@@ -21,6 +21,7 @@ const TITLE_MAP: Record<string, string> = {
   "/analytics": "Analytics",
   "/billing": "Billing & Plans",
   "/content": "Content & Templates",
+  "/community": "Community CMS",
   "/email": "Email",
   "/system": "System & Security",
   "/admins": "Admins",

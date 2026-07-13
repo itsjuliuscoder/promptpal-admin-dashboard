@@ -8,9 +8,11 @@ import PromptPalAdminLogo from "@/components/branding/PromptPalAdminLogo";
 import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
 import packageJson from "../../package.json";
 
-const PAGE_BG = "#F5F1E9";
-const HEADER_BG = "#1A1612";
-const ACCENT = "#c95b2b";
+// New PromptPal brand palette
+const BRAND = "#7A42FC";
+const BRAND_DARK = "#6525EA";
+const BRAND_DARKER = "#5415C2";
+const INK = "#1A1612";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -40,19 +42,44 @@ export default function AdminLoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 py-10"
-      style={{ backgroundColor: PAGE_BG }}
+      className="relative min-h-screen flex items-center justify-center px-4 py-10 overflow-hidden"
+      style={{
+        background:
+          "radial-gradient(1100px 520px at 50% -10%, #efe7ff 0%, #f7f4ff 42%, #fbfaf7 100%)",
+      }}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-[0_18px_40px_rgb(53_42_28_/_0.12)] border border-[#e8e2d8]">
+      {/* soft brand glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[420px] w-[420px] rounded-full blur-3xl opacity-40"
+        style={{ background: BRAND }}
+      />
+
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_rgb(58_34_120_/_0.18)] border border-[#ece7f7]">
         <header
-          className="flex justify-center px-8 py-10"
-          style={{ backgroundColor: HEADER_BG }}
+          className="relative flex flex-col items-center justify-center px-8 py-11"
+          style={{
+            background: `linear-gradient(150deg, ${BRAND_DARKER} 0%, ${BRAND_DARK} 52%, ${BRAND} 100%)`,
+          }}
         >
-          <PromptPalAdminLogo priority />
+          {/* subtle top sheen */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-30"
+            style={{
+              background:
+                "radial-gradient(320px 120px at 50% 0%, rgba(255,255,255,0.5) 0%, transparent 70%)",
+            }}
+          />
+          <div className="relative">
+            <PromptPalAdminLogo priority />
+          </div>
         </header>
 
         <div className="px-8 pt-8 pb-2">
-          <h1 className="text-2xl font-bold text-[#1A1612]">Admin sign in</h1>
+          <h1 className="text-2xl font-bold" style={{ color: INK }}>
+            Admin sign in
+          </h1>
           <p className="mt-1 text-sm text-[#655d53]">
             Restricted access — authorised personnel only
           </p>
@@ -71,7 +98,7 @@ export default function AdminLoginPage() {
               name="username"
               autoComplete="username"
               placeholder="admin@promptpal.app"
-              className="w-full rounded-lg border border-[#d4cec4] bg-white px-3 py-2.5 min-h-[44px] text-[#1A1612] placeholder:text-[#9c948a] focus:outline-none focus:ring-2 focus:ring-[#c95b2b] focus:border-transparent"
+              className="w-full rounded-xl border border-[#e0dbef] bg-[#faf9fe] px-3.5 py-2.5 min-h-[46px] text-[#1A1612] placeholder:text-[#a49bb3] transition focus:outline-none focus:bg-white focus:border-[#7A42FC] focus:ring-2 focus:ring-[#7A42FC]/30"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
@@ -91,7 +118,7 @@ export default function AdminLoginPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 placeholder="Enter your password"
-                className="w-full rounded-lg border border-[#d4cec4] bg-white px-3 py-2.5 min-h-[44px] pr-11 text-[#1A1612] placeholder:text-[#9c948a] focus:outline-none focus:ring-2 focus:ring-[#c95b2b] focus:border-transparent"
+                className="w-full rounded-xl border border-[#e0dbef] bg-[#faf9fe] px-3.5 py-2.5 min-h-[46px] pr-11 text-[#1A1612] placeholder:text-[#a49bb3] transition focus:outline-none focus:bg-white focus:border-[#7A42FC] focus:ring-2 focus:ring-[#7A42FC]/30"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
@@ -101,7 +128,7 @@ export default function AdminLoginPage() {
                 onClick={() => setShowPassword((v) => !v)}
                 aria-pressed={showPassword}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-[#655d53] hover:bg-[#f0ebe3] focus:outline-none focus:ring-2 focus:ring-[#c95b2b] focus:ring-offset-1"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-[#655d53] hover:bg-[#f2eefc] hover:text-[#6525EA] focus:outline-none focus:ring-2 focus:ring-[#7A42FC]/40 focus:ring-offset-1"
               >
                 {showPassword ? (
                   <FiEyeOff size={20} aria-hidden />
@@ -123,36 +150,40 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg border border-[#d4cec4] bg-white py-2.5 min-h-[44px] font-bold text-[#1A1612] shadow-sm hover:bg-[#faf8f4] transition-colors disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#c95b2b] focus:ring-offset-2"
+            className="w-full rounded-xl py-2.5 min-h-[46px] font-bold text-white transition-all disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#7A42FC] focus:ring-offset-2 hover:brightness-[1.06] active:brightness-95"
+            style={{
+              background: `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+              boxShadow: "0 8px 20px rgb(101 37 234 / 0.28)",
+            }}
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
         <div className="px-8 pb-8">
-          <div className="flex gap-2.5 rounded-lg bg-[#f0ebe3] px-3 py-3 text-xs text-[#655d53] leading-relaxed">
+          <div className="flex items-start gap-2.5 rounded-xl bg-[#f5f2fd] border border-[#ece7f7] px-3.5 py-3 text-xs text-[#655d53] leading-relaxed">
             <span
-              className="mt-1.5 h-2 w-2 text-center flex-shrink-0 rounded-full bg-emerald-500"
+              className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500"
               aria-hidden
             />
             <p>Secured connection · All admin actions are logged</p>
           </div>
         </div>
 
-        <footer className="border-t border-[#e8e2d8] px-8 py-4 text-center text-xs text-[#8c8378]">
+        <footer className="border-t border-[#ece7f7] px-8 py-4 text-center text-xs text-[#8c8378]">
           <span>PromptPal Admin v{version} · </span>
           <Link
             href="/system"
-            className="font-medium hover:underline"
-            style={{ color: ACCENT }}
+            className="font-semibold hover:underline"
+            style={{ color: BRAND_DARK }}
           >
             Status
           </Link>
           <span> · </span>
           <a
             href="#"
-            className="font-medium hover:underline"
-            style={{ color: ACCENT }}
+            className="font-semibold hover:underline"
+            style={{ color: BRAND_DARK }}
           >
             Help
           </a>
