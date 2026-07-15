@@ -371,6 +371,14 @@ export const adminService = {
     const response = await axios.patch(`/admin/edit-balance/${userId}`, { amount });
     return response.data;
   },
+  requestUserDeleteCode: async (userId: string) => {
+    const response = await axios.post(`/admin/users/${userId}/delete-code`);
+    return response.data;
+  },
+  deleteUser: async (userId: string, code: string) => {
+    const response = await axios.delete(`/admin/users/${userId}`, { data: { code } });
+    return response.data;
+  },
   getUserPrompts: async (userId: string, params?: Record<string, number>) => {
     const response = await axios.get(`/admin/users/${userId}/prompts`, { params });
     return response.data;

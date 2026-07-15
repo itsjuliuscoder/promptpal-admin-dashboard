@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import SectionCard from "@/components/shared/SectionCard";
 import DataTable from "@/components/shared/DataTable";
 import StatusBadge from "@/components/shared/StatusBadge";
+import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
 import {
   adminService,
   PersonalBrainUserDetailData,
@@ -13,6 +14,8 @@ import {
 
 export default function AdminUserProfilePage() {
   const params = useParams();
+  const router = useRouter();
+  const { admin } = useAdminAuth();
   const userId = params.userId as string;
   const [profile, setProfile] = useState<any>(null);
   const [activityMetrics, setActivityMetrics] = useState<any>(null);
@@ -26,6 +29,12 @@ export default function AdminUserProfilePage() {
   const [blockSaving, setBlockSaving] = useState(false);
   const [balanceAmount, setBalanceAmount] = useState("");
   const [balanceSaving, setBalanceSaving] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteCodeSent, setDeleteCodeSent] = useState(false);
+  const [deleteCode, setDeleteCode] = useState("");
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -107,7 +116,10 @@ export default function AdminUserProfilePage() {
   }
 
   const isBlocked = Boolean(profile.blocked);
+  const isDeleted = profile.accountStatus === "deleted";
+  const canDeleteUser = admin?.role === "super_admin" && !isDeleted;
   const handleBlockToggle = async () => {
+    if (isDeleted) return;
     setBlockSaving(true);
     try {
       await adminService.blockUser(userId, !isBlocked);
@@ -119,6 +131,7 @@ export default function AdminUserProfilePage() {
     }
   };
   const handleEditBalance = async () => {
+    if (isDeleted) return;
     const amount = Number(balanceAmount);
     if (Number.isNaN(amount)) return;
     setBalanceSaving(true);
@@ -127,6 +140,59 @@ export default function AdminUserProfilePage() {
       setBalanceAmount("");
     } finally {
       setBalanceSaving(false);
+    }
+  };
+  const resetDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setDeleteCodeSent(false);
+    setDeleteCode("");
+    setDeleteError(null);
+    setDeleteMessage(null);
+  };
+  const handleRequestDeleteCode = async () => {
+    setDeleteSaving(true);
+    setDeleteError(null);
+    setDeleteMessage(null);
+    try {
+      await adminService.requestUserDeleteCode(userId);
+      setDeleteCodeSent(true);
+      setDeleteMessage("Verification code sent to your admin email.");
+    } catch (err: any) {
+      setDeleteError(
+        err?.response?.data?.message ||
+          "Failed to send verification code. Confirm your admin role and email."
+      );
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
+  const handleDeleteUser = async () => {
+    if (deleteCode.trim().length !== 6) {
+      setDeleteError("Enter the 6-digit verification code.");
+      return;
+    }
+    setDeleteSaving(true);
+    setDeleteError(null);
+    try {
+      const response = await adminService.deleteUser(userId, deleteCode.trim());
+      setProfile((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              ...(response.user || {}),
+              accountStatus: "deleted",
+              blocked: true,
+            }
+          : prev
+      );
+      setDeleteMessage("User deleted successfully.");
+      setTimeout(() => router.push("/users"), 900);
+    } catch (err: any) {
+      setDeleteError(
+        err?.response?.data?.message || "Invalid or expired verification code."
+      );
+    } finally {
+      setDeleteSaving(false);
     }
   };
 
@@ -143,15 +209,24 @@ export default function AdminUserProfilePage() {
           <p><strong>Last Login:</strong> {profile.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString() : "Never"}</p>
           <p><strong>Plan Start:</strong> {profile.planStartDate ? new Date(profile.planStartDate).toLocaleDateString() : "N/A"}</p>
           <p><strong>Plan End:</strong> {profile.planEndDate ? new Date(profile.planEndDate).toLocaleDateString() : "N/A"}</p>
+          {profile.deletedAt ? (
+            <p><strong>Deleted At:</strong> {new Date(profile.deletedAt).toLocaleString()}</p>
+          ) : null}
         </div>
       </SectionCard>
+
+      {isDeleted ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200">
+          This user has been deleted. Account access is disabled and destructive actions are unavailable.
+        </div>
+      ) : null}
 
       <SectionCard title="User Actions">
         <div className="flex flex-wrap gap-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
-              disabled={blockSaving}
+              disabled={blockSaving || isDeleted}
               onClick={handleBlockToggle}
               className={`px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 ${
                 isBlocked
@@ -179,13 +254,28 @@ export default function AdminUserProfilePage() {
             />
             <button
               type="button"
-              disabled={balanceSaving || balanceAmount === ""}
+              disabled={balanceSaving || balanceAmount === "" || isDeleted}
               onClick={handleEditBalance}
               className="px-4 py-2 bg-[#A84C34] text-white rounded-lg hover:bg-[#92361a] disabled:opacity-50 text-sm font-medium"
             >
               {balanceSaving ? "Saving…" : "Apply"}
             </button>
           </div>
+          {admin?.role === "super_admin" ? (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={!canDeleteUser}
+                onClick={() => setDeleteModalOpen(true)}
+                className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 bg-red-700 hover:bg-red-800 text-white"
+              >
+                Delete user
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Requires email code verification
+              </span>
+            </div>
+          ) : null}
         </div>
       </SectionCard>
 
@@ -361,6 +451,89 @@ export default function AdminUserProfilePage() {
           ]}
         />
       </SectionCard>
+
+      {deleteModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900">
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-600">
+                Protected destructive action
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">
+                Delete this user?
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                This will soft-delete <strong>{profile.name}</strong> ({profile.email}),
+                block account access, and preserve audit/history records. A one-time code
+                will be sent to your admin email before the action can complete.
+              </p>
+            </div>
+
+            {deleteMessage ? (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200">
+                {deleteMessage}
+              </div>
+            ) : null}
+            {deleteError ? (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200">
+                {deleteError}
+              </div>
+            ) : null}
+
+            {deleteCodeSent ? (
+              <div className="mb-5">
+                <label
+                  htmlFor="delete-user-code"
+                  className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200"
+                >
+                  Email verification code
+                </label>
+                <input
+                  id="delete-user-code"
+                  value={deleteCode}
+                  onChange={(event) =>
+                    setDeleteCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="000000"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                />
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                disabled={deleteSaving}
+                onClick={resetDeleteModal}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              {!deleteCodeSent ? (
+                <button
+                  type="button"
+                  disabled={deleteSaving}
+                  onClick={handleRequestDeleteCode}
+                  className="px-4 py-2 rounded-lg bg-red-700 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50"
+                >
+                  {deleteSaving ? "Sending…" : "Send code"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={deleteSaving || deleteCode.length !== 6}
+                  onClick={handleDeleteUser}
+                  className="px-4 py-2 rounded-lg bg-red-700 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50"
+                >
+                  {deleteSaving ? "Deleting…" : "Confirm delete"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
