@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { FiRefreshCw, FiRotateCcw, FiSearch } from "react-icons/fi";
+import { FiEdit3, FiPlus, FiRefreshCw, FiRotateCcw, FiSearch } from "react-icons/fi";
 import DataTable from "@/components/shared/DataTable";
 import ErrorState from "@/components/shared/ErrorState";
 import FilterBar from "@/components/shared/FilterBar";
@@ -9,9 +9,27 @@ import { TableSkeleton } from "@/components/shared/LoadingSkeleton";
 import PageHeader from "@/components/shared/PageHeader";
 import Pagination from "@/components/shared/Pagination";
 import StatusBadge from "@/components/shared/StatusBadge";
-import { adminService, type AdminFeedbackItem } from "@/lib/services/adminService";
+import {
+  adminService,
+  type AdminFeedbackCreatePayload,
+  type AdminFeedbackItem,
+  type AdminFeedbackUpdatePayload,
+} from "@/lib/services/adminService";
 
-function formatDate(value?: string) {
+const categories = ["general", "feature-request", "bug-report"] as const;
+const priorities = ["low", "medium", "high"] as const;
+const statuses = ["open", "in-progress", "resolved", "closed"] as const;
+
+const emptyCreateForm: AdminFeedbackCreatePayload = {
+  category: "general",
+  subject: "",
+  message: "",
+  priority: "medium",
+  status: "open",
+  adminNotes: "",
+};
+
+function formatDate(value?: string | null) {
   if (!value) return "Unknown";
   return new Date(value).toLocaleString(undefined, {
     month: "short",
@@ -22,7 +40,7 @@ function formatDate(value?: string) {
   });
 }
 
-function formatCategory(value: string) {
+function formatLabel(value?: string) {
   if (!value) return "General";
   return value
     .split("-")
@@ -30,10 +48,28 @@ function formatCategory(value: string) {
     .join(" ");
 }
 
+function userLabel(feedback: AdminFeedbackItem) {
+  if (feedback.source === "admin_created") return "Admin-created";
+  return feedback.userId?.email || feedback.userId?.name || "Deleted user";
+}
+
+function metadataPreview(metadata?: Record<string, unknown>) {
+  if (!metadata || Object.keys(metadata).length === 0) return "No metadata";
+  return JSON.stringify(metadata, null, 2);
+}
+
 export default function AdminFeedbackPage() {
   const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([]);
+  const [selectedFeedback, setSelectedFeedback] = useState<AdminFeedbackItem | null>(null);
+  const [createForm, setCreateForm] = useState<AdminFeedbackCreatePayload>(emptyCreateForm);
+  const [editForm, setEditForm] = useState<AdminFeedbackUpdatePayload>({});
   const [loading, setLoading] = useState(true);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -46,7 +82,7 @@ export default function AdminFeedbackPage() {
     totalPages: number;
   } | null>(null);
 
-  const loadFeedback = async (page: number = currentPage) => {
+  const loadFeedback = async (page = currentPage) => {
     setLoading(true);
     setError(null);
     try {
@@ -57,11 +93,8 @@ export default function AdminFeedbackPage() {
         category: categoryFilter || undefined,
         status: statusFilter || undefined,
       });
-
       setFeedback(response.feedback || []);
-      if (response.pagination) {
-        setPagination(response.pagination);
-      }
+      setPagination(response.pagination || null);
     } catch (err) {
       console.error("Failed to load feedback list", err);
       setError("Failed to load feedback. Please try again.");
@@ -75,6 +108,28 @@ export default function AdminFeedbackPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const openDetail = async (item: AdminFeedbackItem) => {
+    setDetailOpen(true);
+    setModalLoading(true);
+    setModalError(null);
+    setSelectedFeedback(item);
+    try {
+      const response = await adminService.getFeedbackById(item._id);
+      setSelectedFeedback(response.feedback);
+      setEditForm({
+        category: response.feedback.category,
+        priority: response.feedback.priority,
+        status: response.feedback.status,
+        adminNotes: response.feedback.adminNotes || "",
+      });
+    } catch (err) {
+      console.error("Failed to load feedback detail", err);
+      setModalError("Failed to load feedback detail.");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   const handleSearch = () => {
     setCurrentPage(1);
     loadFeedback(1);
@@ -85,15 +140,46 @@ export default function AdminFeedbackPage() {
     setCategoryFilter("");
     setStatusFilter("");
     setCurrentPage(1);
-    setTimeout(() => {
-      loadFeedback(1);
-    }, 0);
+    setTimeout(() => loadFeedback(1), 0);
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    loadFeedback(page);
+  const handleCreate = async () => {
+    setSaving(true);
+    setModalError(null);
+    try {
+      await adminService.createFeedback(createForm);
+      setCreateOpen(false);
+      setCreateForm(emptyCreateForm);
+      setCurrentPage(1);
+      await loadFeedback(1);
+    } catch (err: any) {
+      setModalError(err?.response?.data?.error || "Failed to create feedback.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleUpdate = async () => {
+    if (!selectedFeedback) return;
+    setSaving(true);
+    setModalError(null);
+    try {
+      const response = await adminService.updateFeedback(selectedFeedback._id, editForm);
+      setFeedback((current) =>
+        current.map((item) => (item._id === response.feedback._id ? response.feedback : item)),
+      );
+      setSelectedFeedback(response.feedback);
+      setDetailOpen(false);
+      await loadFeedback(currentPage);
+    } catch (err: any) {
+      setModalError(err?.response?.data?.error || "Failed to update feedback.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const createDisabled =
+    saving || !createForm.subject.trim() || createForm.message.trim().length < 10;
 
   return (
     <div className="admin-page space-y-6">
@@ -108,148 +194,358 @@ export default function AdminFeedbackPage() {
           </>
         }
         actions={
-          <button className="admin-button admin-button-secondary" onClick={() => loadFeedback(currentPage)}>
-            <FiRefreshCw size={16} />
-            Refresh
-          </button>
+          <>
+            <button className="admin-button admin-button-secondary" onClick={() => loadFeedback(currentPage)}>
+              <FiRefreshCw size={16} />
+              Refresh
+            </button>
+            <button className="admin-button admin-button-primary" onClick={() => setCreateOpen(true)}>
+              <FiPlus size={16} />
+              New feedback
+            </button>
+          </>
         }
       />
 
-      <FilterBar
-        searchSlot={
-          <div className="grid gap-2">
-            <label className="admin-eyebrow" htmlFor="feedback-search">
-              Search feedback
-            </label>
-            <input
-              id="feedback-search"
-              className="admin-input"
-              placeholder="Search by subject or message"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") handleSearch();
-              }}
-            />
-          </div>
-        }
-        filterSlot={
-          <>
-            <select
-              className="admin-select"
-              value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
-            >
-              <option value="">All categories</option>
-              <option value="general">General</option>
-              <option value="feature-request">Feature Request</option>
-              <option value="bug-report">Bug Report</option>
-            </select>
-            <select
-              className="admin-select"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option value="">All statuses</option>
-              <option value="open">Open</option>
-              <option value="in-progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-            </select>
-          </>
-        }
-        actionSlot={
-          <>
-            <button className="admin-button admin-button-primary" onClick={handleSearch}>
-              <FiSearch size={16} />
-              Search
-            </button>
-            <button className="admin-button admin-button-ghost" onClick={handleReset}>
-              <FiRotateCcw size={16} />
-              Reset
-            </button>
-          </>
-        }
-      />
+      <FilterBar>
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto]">
+          <input
+            className="admin-input"
+            placeholder="Search by subject or message"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") handleSearch();
+            }}
+          />
+          <button className="admin-button admin-button-primary" onClick={handleSearch}>
+            <FiSearch size={16} />
+            Search
+          </button>
+          <button className="admin-button admin-button-secondary" onClick={handleReset}>
+            <FiRotateCcw size={16} />
+            Reset
+          </button>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <select className="admin-select" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
+            <option value="">All categories</option>
+            {categories.map((category) => (
+              <option key={category} value={category}>{formatLabel(category)}</option>
+            ))}
+          </select>
+          <select className="admin-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+            <option value="">All statuses</option>
+            {statuses.map((status) => (
+              <option key={status} value={status}>{formatLabel(status)}</option>
+            ))}
+          </select>
+        </div>
+      </FilterBar>
 
       {loading ? (
-        <TableSkeleton rows={10} columns={6} />
+        <TableSkeleton />
       ) : error ? (
-        <ErrorState message={error} onRetry={() => loadFeedback(1)} />
+        <ErrorState title="Unable to load feedback" message={error} onRetry={() => loadFeedback(currentPage)} />
       ) : (
         <>
           <DataTable
-            rows={feedback}
-            rowKey={(row) => row._id}
-            emptyTitle="No feedback found"
-            emptyMessage="Try adjusting your filters or search query."
-            mobileCardTitle={(row) => row.subject}
-            mobileCardMeta={(row) => row.userId?.email || row.userId?.name || "Unknown user"}
-            mobileCardFooter={(row) => (
-              <StatusBadge label={row.status} variant="info" size="sm" />
-            )}
             columns={[
               {
                 key: "createdAt",
                 label: "Submitted",
-                width: "16%",
-                render: (value) => formatDate(value),
+                sortable: true,
+                render: (_value, item: AdminFeedbackItem) => formatDate(item.createdAt),
               },
               {
-                key: "userId",
+                key: "user",
                 label: "User",
-                width: "20%",
-                render: (_, row) => row.userId?.email || row.userId?.name || "Deleted user",
+                sortable: false,
+                render: (_value, item: AdminFeedbackItem) => userLabel(item),
               },
               {
                 key: "category",
                 label: "Category",
-                width: "12%",
-                render: (value) => <StatusBadge label={formatCategory(value)} variant="info" />,
+                sortable: true,
+                render: (_value, item: AdminFeedbackItem) => (
+                  <StatusBadge label={formatLabel(item.category)} variant="info" />
+                ),
               },
               {
                 key: "subject",
                 label: "Subject",
+                sortable: true,
                 emphasize: true,
-                width: "24%",
+                render: (_value, item: AdminFeedbackItem) => (
+                  <button className="text-left font-semibold text-[color:var(--admin-text)] hover:underline" onClick={() => openDetail(item)}>
+                    {item.subject}
+                  </button>
+                ),
               },
               {
                 key: "priority",
                 label: "Priority",
-                width: "12%",
-                render: (value) => (
-                  <StatusBadge
-                    label={value}
-                    variant={value === "high" ? "error" : value === "medium" ? "warning" : "success"}
-                  />
+                sortable: true,
+                render: (_value, item: AdminFeedbackItem) => (
+                  <StatusBadge label={item.priority} variant={item.priority === "high" ? "error" : "warning"} />
                 ),
               },
               {
                 key: "status",
                 label: "Status",
-                align: "right",
-                width: "16%",
-                render: (value) => (
+                sortable: true,
+                render: (_value, item: AdminFeedbackItem) => (
                   <StatusBadge
-                    label={value}
-                    variant={value === "closed" ? "success" : value === "resolved" ? "info" : value === "in-progress" ? "warning" : "error"}
+                    label={formatLabel(item.status)}
+                    variant={item.status === "resolved" || item.status === "closed" ? "success" : "error"}
                   />
                 ),
               },
+              {
+                key: "actions",
+                label: "Actions",
+                sortable: false,
+                render: (_value, item: AdminFeedbackItem) => (
+                  <button className="admin-button admin-button-secondary" onClick={() => openDetail(item)}>
+                    <FiEdit3 size={16} />
+                    Review
+                  </button>
+                ),
+              },
             ]}
+            rows={feedback}
+            emptyMessage="No feedback found"
+            rowKey={(item) => item._id}
+            mobileCardTitle={(item) => item.subject}
+            mobileCardMeta={(item) => `${userLabel(item)} • ${formatDate(item.createdAt)}`}
+            mobileCardFooter={(item) => (
+              <button className="admin-button admin-button-secondary" onClick={() => openDetail(item)}>
+                <FiEdit3 size={16} />
+                Review
+              </button>
+            )}
           />
-          {pagination ? (
+          {pagination && pagination.totalPages > 1 && (
             <Pagination
               currentPage={pagination.page}
               totalPages={pagination.totalPages}
               totalItems={pagination.total}
-              itemsPerPage={itemsPerPage}
-              onPageChange={handlePageChange}
+              itemsPerPage={pagination.limit}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                loadFeedback(page);
+              }}
             />
-          ) : null}
+          )}
         </>
       )}
+
+      <FeedbackModal
+        open={createOpen}
+        title="New feedback"
+        primaryLabel={saving ? "Creating..." : "Create feedback"}
+        primaryDisabled={createDisabled}
+        onClose={() => {
+          setCreateOpen(false);
+          setModalError(null);
+        }}
+        onPrimary={handleCreate}
+      >
+        <FeedbackCreateForm form={createForm} setForm={setCreateForm} error={modalError} />
+      </FeedbackModal>
+
+      <FeedbackModal
+        open={detailOpen}
+        title="Feedback detail"
+        primaryLabel={saving ? "Saving..." : "Save triage"}
+        primaryDisabled={saving || modalLoading || !selectedFeedback}
+        onClose={() => {
+          setDetailOpen(false);
+          setModalError(null);
+        }}
+        onPrimary={handleUpdate}
+      >
+        {modalLoading || !selectedFeedback ? (
+          <div className="py-8 text-sm text-[color:var(--admin-text-soft)]">Loading feedback detail...</div>
+        ) : (
+          <FeedbackDetailForm
+            feedback={selectedFeedback}
+            form={editForm}
+            setForm={setEditForm}
+            error={modalError}
+          />
+        )}
+      </FeedbackModal>
     </div>
   );
 }
 
+function FeedbackModal({
+  open,
+  title,
+  primaryLabel,
+  primaryDisabled,
+  children,
+  onClose,
+  onPrimary,
+}: {
+  open: boolean;
+  title: string;
+  primaryLabel: string;
+  primaryDisabled: boolean;
+  children: React.ReactNode;
+  onClose: () => void;
+  onPrimary: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+      <div className="w-full max-w-3xl rounded-lg border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] shadow-xl">
+        <div className="flex items-center justify-between border-b border-[color:var(--admin-border)] px-6 py-4">
+          <h2 className="text-xl font-bold text-[color:var(--admin-text)]">{title}</h2>
+          <button className="admin-button admin-button-secondary" onClick={onClose}>Close</button>
+        </div>
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex justify-end gap-3 border-t border-[color:var(--admin-border)] px-6 py-4">
+          <button className="admin-button admin-button-secondary" onClick={onClose}>Cancel</button>
+          <button className="admin-button admin-button-primary" disabled={primaryDisabled} onClick={onPrimary}>
+            {primaryLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedbackCreateForm({
+  form,
+  setForm,
+  error,
+}: {
+  form: AdminFeedbackCreatePayload;
+  setForm: React.Dispatch<React.SetStateAction<AdminFeedbackCreatePayload>>;
+  error: string | null;
+}) {
+  return (
+    <div className="space-y-5">
+      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <div className="grid gap-4 md:grid-cols-3">
+        <SelectField label="Category" value={form.category} onChange={(value) => setForm((current) => ({ ...current, category: value as AdminFeedbackCreatePayload["category"] }))} options={categories} />
+        <SelectField label="Priority" value={form.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value as AdminFeedbackCreatePayload["priority"] }))} options={priorities} />
+        <SelectField label="Status" value={form.status} onChange={(value) => setForm((current) => ({ ...current, status: value as AdminFeedbackCreatePayload["status"] }))} options={statuses} />
+      </div>
+      <TextField label="Subject" value={form.subject} maxLength={200} onChange={(value) => setForm((current) => ({ ...current, subject: value }))} />
+      <TextAreaField label="Message" value={form.message} rows={5} onChange={(value) => setForm((current) => ({ ...current, message: value }))} />
+      <TextAreaField label="Admin notes" value={form.adminNotes || ""} rows={3} onChange={(value) => setForm((current) => ({ ...current, adminNotes: value }))} />
+    </div>
+  );
+}
+
+function FeedbackDetailForm({
+  feedback,
+  form,
+  setForm,
+  error,
+}: {
+  feedback: AdminFeedbackItem;
+  form: AdminFeedbackUpdatePayload;
+  setForm: React.Dispatch<React.SetStateAction<AdminFeedbackUpdatePayload>>;
+  error: string | null;
+}) {
+  return (
+    <div className="space-y-5">
+      {error && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      <div className="rounded-lg border border-[color:var(--admin-border)] bg-white p-4">
+        <div className="grid gap-3 text-sm md:grid-cols-2">
+          <p><strong>User:</strong> {userLabel(feedback)}</p>
+          <p><strong>Submitted:</strong> {formatDate(feedback.createdAt)}</p>
+          <p><strong>Source:</strong> {formatLabel(feedback.source || "user")}</p>
+          <p><strong>Resolved:</strong> {feedback.resolvedAt ? formatDate(feedback.resolvedAt) : "N/A"}</p>
+        </div>
+        <div className="mt-4">
+          <p className="admin-eyebrow">Subject</p>
+          <p className="font-semibold text-[color:var(--admin-text)]">{feedback.subject}</p>
+        </div>
+        <div className="mt-4">
+          <p className="admin-eyebrow">Message</p>
+          <p className="mt-1 whitespace-pre-wrap text-[color:var(--admin-text-soft)]">{feedback.message}</p>
+        </div>
+        <details className="mt-4">
+          <summary className="cursor-pointer font-semibold text-[color:var(--admin-text)]">Metadata</summary>
+          <pre className="mt-2 max-h-48 overflow-auto rounded-lg bg-[color:var(--admin-bg)] p-3 text-xs text-[color:var(--admin-text-soft)]">
+            {metadataPreview(feedback.metadata)}
+          </pre>
+        </details>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <SelectField label="Category" value={form.category || feedback.category} onChange={(value) => setForm((current) => ({ ...current, category: value as AdminFeedbackUpdatePayload["category"] }))} options={categories} />
+        <SelectField label="Priority" value={form.priority || feedback.priority} onChange={(value) => setForm((current) => ({ ...current, priority: value as AdminFeedbackUpdatePayload["priority"] }))} options={priorities} />
+        <SelectField label="Status" value={form.status || feedback.status} onChange={(value) => setForm((current) => ({ ...current, status: value as AdminFeedbackUpdatePayload["status"] }))} options={statuses} />
+      </div>
+      <TextAreaField label="Admin notes" value={form.adminNotes ?? feedback.adminNotes ?? ""} rows={4} onChange={(value) => setForm((current) => ({ ...current, adminNotes: value }))} />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-2 text-sm">
+      <span className="admin-eyebrow">{label}</span>
+      <select className="admin-select" value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option} value={option}>{formatLabel(option)}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  maxLength,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  maxLength?: number;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-2 text-sm">
+      <span className="admin-eyebrow">{label}</span>
+      <input className="admin-input" value={value} maxLength={maxLength} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  rows,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  rows: number;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-2 text-sm">
+      <span className="admin-eyebrow">{label}</span>
+      <textarea className="admin-input min-h-24 resize-y" rows={rows} value={value} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}

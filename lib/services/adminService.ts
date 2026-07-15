@@ -219,9 +219,25 @@ export interface AdminFeedbackItem {
   message: string;
   priority: "low" | "medium" | "high";
   status: "open" | "in-progress" | "resolved" | "closed";
+  adminNotes?: string;
+  source?: "user" | "public" | "admin_created";
+  metadata?: Record<string, unknown>;
+  resolvedAt?: string | null;
+  statusUpdatedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export type AdminFeedbackCreatePayload = Pick<
+  AdminFeedbackItem,
+  "category" | "subject" | "message" | "priority" | "status"
+> & {
+  adminNotes?: string;
+};
+
+export type AdminFeedbackUpdatePayload = Partial<
+  Pick<AdminFeedbackItem, "category" | "priority" | "status" | "adminNotes">
+>;
 
 export type CreatorApplicationStatus = "pending" | "invited" | "rejected";
 export type CreatorSubmissionStatus = "pending" | "approved" | "rejected";
@@ -606,6 +622,18 @@ export const adminService = {
         totalPages: number;
       };
     };
+  },
+  getFeedbackById: async (feedbackId: string) => {
+    const response = await axios.get(`/admin/feedback/${feedbackId}`);
+    return response.data as { success: boolean; feedback: AdminFeedbackItem };
+  },
+  createFeedback: async (payload: AdminFeedbackCreatePayload) => {
+    const response = await axios.post("/admin/feedback", payload);
+    return response.data as { success: boolean; feedback: AdminFeedbackItem; message?: string };
+  },
+  updateFeedback: async (feedbackId: string, payload: AdminFeedbackUpdatePayload) => {
+    const response = await axios.patch(`/admin/feedback/${feedbackId}`, payload);
+    return response.data as { success: boolean; feedback: AdminFeedbackItem; message?: string };
   },
   getCollectionStats: async () => {
     const response = await axios.get("/admin/collections/stats");
