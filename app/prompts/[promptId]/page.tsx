@@ -6,6 +6,20 @@ import SectionCard from "@/components/shared/SectionCard";
 import DataTable from "@/components/shared/DataTable";
 import { adminService } from "@/lib/services/adminService";
 
+function getLatestRequestPayload(prompt: any) {
+  if (prompt?.refinementRequestPayload) {
+    return prompt.refinementRequestPayload;
+  }
+
+  if (!Array.isArray(prompt?.history)) {
+    return null;
+  }
+
+  return [...prompt.history]
+    .reverse()
+    .find((entry) => entry?.refinementRequestPayload)?.refinementRequestPayload || null;
+}
+
 export default function AdminPromptDetailPage() {
   const params = useParams();
   const promptId = params.promptId as string;
@@ -35,6 +49,8 @@ export default function AdminPromptDetailPage() {
     return <div className="p-6 text-gray-500">Loading prompt detail...</div>;
   }
 
+  const requestPayload = getLatestRequestPayload(prompt);
+
   return (
     <div className="p-6 space-y-6">
       <SectionCard title="Prompt Content">
@@ -52,6 +68,18 @@ export default function AdminPromptDetailPage() {
         ) : (
           <p className="text-sm text-gray-500 dark:text-gray-400">
             No refined output for this prompt.
+          </p>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Request payload">
+        {requestPayload ? (
+          <pre className="max-h-[32rem] overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs text-gray-700 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-300">
+            {JSON.stringify(requestPayload, null, 2)}
+          </pre>
+        ) : (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            No request payload recorded for this prompt.
           </p>
         )}
       </SectionCard>
