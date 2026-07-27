@@ -9,15 +9,131 @@ import StatusBadge from "@/components/shared/StatusBadge";
 import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
 import {
   adminService,
+  AdminUserDetailData,
+  AdminUserPreferenceSnapshot,
   PersonalBrainUserDetailData,
 } from "@/lib/services/adminService";
+
+const AI_TOOL_LABELS: Record<string, string> = {
+  chatgpt: "ChatGPT",
+  claude: "Claude",
+  gemini: "Gemini",
+  cursor: "Cursor",
+  copilot: "GitHub Copilot",
+  perplexity: "Perplexity",
+  claude_code: "Claude Code",
+  codeium: "Codeium",
+  codex: "Codex / o1",
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  developer: "Developer",
+  marketer: "Marketer",
+  sales: "Sales",
+  writer: "Writer",
+  recruiter: "Recruiter",
+  product_manager: "Product Manager",
+  founder: "Founder",
+  support: "Support",
+  analyst: "Analyst",
+  other: "Other",
+};
+
+const USE_CASE_LABELS: Record<string, string> = {
+  code_generation: "Code generation",
+  content_creation: "Content creation",
+  sales_outreach: "Sales outreach",
+  customer_support: "Customer support",
+  hiring: "Hiring",
+  product_planning: "Product planning",
+  research_analysis: "Research analysis",
+  workflow_automation: "Workflow automation",
+  other: "Other",
+};
+
+const OUTPUT_TYPE_LABELS: Record<string, string> = {
+  email: "Email",
+  report: "Report",
+  presentation: "Presentation",
+  analysis: "Analysis",
+  code: "Code",
+  documentation: "Documentation",
+  content: "Content",
+  plan: "Plan",
+  sop: "SOP",
+  research: "Research",
+  tests: "Tests",
+  brainstorms: "Brainstorms",
+  other: "Other",
+};
+
+const REFERRAL_SOURCE_LABELS: Record<string, string> = {
+  google_search: "Google Search",
+  ai_assistant: "AI Assistant",
+  supademo: "Product demo",
+  linkedin: "LinkedIn",
+  youtube: "YouTube",
+  review_site: "Review site",
+  friend: "Friend or colleague",
+  other: "Other",
+};
+
+function formatEnumLabel(
+  value: string | null | undefined,
+  map: Record<string, string>,
+): string {
+  if (!value) return "N/A";
+  return map[value] || value;
+}
+
+function formatList(values?: string[] | null, map?: Record<string, string>): string {
+  if (!values?.length) return "N/A";
+  return values.map((value) => formatEnumLabel(value, map || {})).join(", ");
+}
+
+function getRoleDisplay(preferences?: AdminUserPreferenceSnapshot | null): string {
+  if (!preferences?.primaryRole) return "N/A";
+  if (preferences.primaryRole === "other") {
+    return preferences.primaryRoleOther?.trim() || "Other";
+  }
+  return ROLE_LABELS[preferences.primaryRole] || preferences.primaryRole;
+}
+
+function getUseCaseDisplay(preferences?: AdminUserPreferenceSnapshot | null): string {
+  if (!preferences?.primaryUseCase) return "N/A";
+  if (preferences.primaryUseCase === "other") {
+    return preferences.primaryUseCaseOther?.trim() || "Other";
+  }
+  return USE_CASE_LABELS[preferences.primaryUseCase] || preferences.primaryUseCase;
+}
+
+function getAiToolDisplay(preferences?: AdminUserPreferenceSnapshot | null): string {
+  const tools = preferences?.preferredAiTools?.length
+    ? preferences.preferredAiTools
+    : preferences?.preferredAiTool
+      ? [preferences.preferredAiTool]
+      : [];
+  if (!tools.length) return "N/A";
+  return tools.map((tool) => AI_TOOL_LABELS[tool] || tool).join(", ");
+}
+
+function getPresetLabel(value?: string | null): string {
+  const labels: Record<string, string> = {
+    polished: "Polished",
+    analytical: "Analytical",
+    creative: "Creative",
+    step_by_step: "Step by step",
+    test_and_evaluate: "Test & evaluate",
+  };
+  return value ? labels[value] || value : "N/A";
+}
 
 export default function AdminUserProfilePage() {
   const params = useParams();
   const router = useRouter();
   const { admin } = useAdminAuth();
   const userId = params.userId as string;
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<AdminUserDetailData["user"] | null>(null);
   const [activityMetrics, setActivityMetrics] = useState<any>(null);
   const [prompts, setPrompts] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -212,6 +328,73 @@ export default function AdminUserProfilePage() {
           {profile.deletedAt ? (
             <p><strong>Deleted At:</strong> {new Date(profile.deletedAt).toLocaleString()}</p>
           ) : null}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Onboarding Preferences"
+        description="Collected during onboarding and useful for tailoring prompts and recommendations."
+      >
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 text-sm">
+          <div className="rounded-xl border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--admin-text-soft)]">Goal / intent</p>
+            <p className="mt-2 font-medium text-[color:var(--admin-text)]">
+              {formatEnumLabel(profile.preferences?.onboardingIntent, { prompts: "Prompt creation", agent: "Agent building" })}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--admin-text-soft)]">Referral source</p>
+            <p className="mt-2 font-medium text-[color:var(--admin-text)]">
+              {formatEnumLabel(profile.preferences?.referralSource, REFERRAL_SOURCE_LABELS)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--admin-text-soft)]">Primary role</p>
+            <p className="mt-2 font-medium text-[color:var(--admin-text)]">
+              {getRoleDisplay(profile.preferences)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--admin-text-soft)]">Primary use case</p>
+            <p className="mt-2 font-medium text-[color:var(--admin-text)]">
+              {getUseCaseDisplay(profile.preferences)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--admin-text-soft)]">Preferred AI tools</p>
+            <p className="mt-2 font-medium text-[color:var(--admin-text)]">
+              {getAiToolDisplay(profile.preferences)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--admin-text-soft)]">Refinement style</p>
+            <p className="mt-2 font-medium text-[color:var(--admin-text)]">
+              {getPresetLabel(profile.preferences?.defaultPreset)}
+            </p>
+            <p className="mt-1 text-xs text-[color:var(--admin-text-soft)]">
+              Tone: {formatEnumLabel(profile.preferences?.responseTone, { professional: "Professional", casual: "Casual", friendly: "Friendly", formal: "Formal" })}
+              {" · "}
+              Length: {formatEnumLabel(profile.preferences?.responseLength, { concise: "Concise", medium: "Medium", detailed: "Detailed" })}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--admin-text-soft)]">Work context</p>
+            <dl className="mt-3 space-y-2 text-sm text-[color:var(--admin-text)]">
+              <div><dt className="font-medium">Industry</dt><dd>{profile.workContext?.industry || "N/A"}</dd></div>
+              <div><dt className="font-medium">Primary goal</dt><dd>{profile.workContext?.primaryGoal || "N/A"}</dd></div>
+              <div><dt className="font-medium">Recurring tasks</dt><dd>{profile.workContext?.recurringTasks?.length ? profile.workContext.recurringTasks.join(", ") : "N/A"}</dd></div>
+              <div><dt className="font-medium">Audiences</dt><dd>{profile.workContext?.audiences?.length ? profile.workContext.audiences.join(", ") : "N/A"}</dd></div>
+              <div><dt className="font-medium">Output types</dt><dd>{formatList(profile.workContext?.outputTypes || null, OUTPUT_TYPE_LABELS)}</dd></div>
+            </dl>
+          </div>
+          <div className="rounded-xl border border-[color:var(--admin-border)] bg-[color:var(--admin-surface)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--admin-text-soft)]">Additional context</p>
+            <p className="mt-3 text-sm text-[color:var(--admin-text)]">
+              {profile.workContext?.additionalContext || profile.workContext?.constraints || "N/A"}
+            </p>
+          </div>
         </div>
       </SectionCard>
 

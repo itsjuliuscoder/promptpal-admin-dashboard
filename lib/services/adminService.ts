@@ -158,6 +158,113 @@ export interface PersonalBrainUserDetailData {
   };
 }
 
+export type ReferralSource =
+  | "google_search"
+  | "ai_assistant"
+  | "supademo"
+  | "linkedin"
+  | "youtube"
+  | "review_site"
+  | "friend"
+  | "other";
+
+export interface AdminUserPreferenceSnapshot {
+  aiProvider?: "openai" | "deepseek" | "gemini" | "claude" | "ollama";
+  defaultPreset?:
+    | "polished"
+    | "analytical"
+    | "creative"
+    | "step_by_step"
+    | "test_and_evaluate";
+  defaultLanguage?: string;
+  defaultAudience?: string;
+  defaultFormat?: string;
+  responseTone?: "professional" | "casual" | "friendly" | "formal";
+  responseLength?: "concise" | "medium" | "detailed";
+  autoApplyPreferences?: boolean;
+  primaryRole?:
+    | "developer"
+    | "marketer"
+    | "sales"
+    | "writer"
+    | "recruiter"
+    | "product_manager"
+    | "founder"
+    | "support"
+    | "analyst"
+    | "other"
+    | null;
+  primaryRoleOther?: string | null;
+  primaryUseCase?:
+    | "code_generation"
+    | "content_creation"
+    | "sales_outreach"
+    | "customer_support"
+    | "hiring"
+    | "product_planning"
+    | "research_analysis"
+    | "workflow_automation"
+    | "other"
+    | null;
+  primaryUseCaseOther?: string | null;
+  preferredAiTool?:
+    | "chatgpt"
+    | "claude"
+    | "gemini"
+    | "cursor"
+    | "copilot"
+    | "perplexity"
+    | "claude_code"
+    | "codeium"
+    | "codex"
+    | null;
+  preferredAiTools?: Array<
+    | "chatgpt"
+    | "claude"
+    | "gemini"
+    | "cursor"
+    | "copilot"
+    | "perplexity"
+    | "claude_code"
+    | "codeium"
+    | "codex"
+  >;
+  referralSource?: ReferralSource | null;
+  onboardingIntent?: "prompts" | "agent" | null;
+}
+
+export interface AdminUserDetailData {
+  user: {
+    _id: string;
+    name: string;
+    email: string;
+    authProvider?: string;
+    blocked?: boolean;
+    accountStatus?: string;
+    subscriptionStatus?: string;
+    createdAt?: string;
+    lastLoginAt?: string | null;
+    planStartDate?: string | null;
+    planEndDate?: string | null;
+    deletedAt?: string | null;
+    preferences?: AdminUserPreferenceSnapshot;
+    workContext?: {
+      industry?: string;
+      primaryGoal?: string;
+      recurringTasks?: string[];
+      audiences?: string[];
+      outputTypes?: string[];
+      constraints?: string;
+      additionalContext?: string;
+      agentTrigger?: string;
+      agentTools?: string[];
+      agentOutput?: string;
+    };
+  };
+  wallet?: Record<string, unknown> | null;
+  activityMetrics?: Record<string, unknown> | null;
+}
+
 export interface PublicRefinementAnalyticsData {
   summary: {
     total: number;
@@ -363,7 +470,7 @@ export const adminService = {
     const response = await axios.get("/admin/users", { params });
     return response.data;
   },
-  getUserById: async (userId: string) => {
+  getUserById: async (userId: string): Promise<AdminUserDetailData> => {
     const response = await axios.get(`/admin/users/${userId}`);
     return response.data;
   },
