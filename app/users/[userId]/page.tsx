@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import SectionCard from "@/components/shared/SectionCard";
 import DataTable from "@/components/shared/DataTable";
 import StatusBadge from "@/components/shared/StatusBadge";
+import UserCreditsCard from "@/components/credits/UserCreditsCard";
 import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
 import {
   adminService,
@@ -143,8 +144,6 @@ export default function AdminUserProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [blockSaving, setBlockSaving] = useState(false);
-  const [balanceAmount, setBalanceAmount] = useState("");
-  const [balanceSaving, setBalanceSaving] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteCodeSent, setDeleteCodeSent] = useState(false);
   const [deleteCode, setDeleteCode] = useState("");
@@ -244,18 +243,6 @@ export default function AdminUserProfilePage() {
       console.error("Failed to update block status", err);
     } finally {
       setBlockSaving(false);
-    }
-  };
-  const handleEditBalance = async () => {
-    if (isDeleted) return;
-    const amount = Number(balanceAmount);
-    if (Number.isNaN(amount)) return;
-    setBalanceSaving(true);
-    try {
-      await adminService.editBalance(userId, amount);
-      setBalanceAmount("");
-    } finally {
-      setBalanceSaving(false);
     }
   };
   const resetDeleteModal = () => {
@@ -423,27 +410,6 @@ export default function AdminUserProfilePage() {
               {isBlocked ? "User is blocked" : "User is active"}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <label htmlFor="balance-amount" className="text-sm text-gray-700 dark:text-gray-300">
-              Edit balance (amount):
-            </label>
-            <input
-              id="balance-amount"
-              type="number"
-              value={balanceAmount}
-              onChange={(e) => setBalanceAmount(e.target.value)}
-              placeholder="0"
-              className="w-24 px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
-            />
-            <button
-              type="button"
-              disabled={balanceSaving || balanceAmount === "" || isDeleted}
-              onClick={handleEditBalance}
-              className="px-4 py-2 bg-[#A84C34] text-white rounded-lg hover:bg-[#92361a] disabled:opacity-50 text-sm font-medium"
-            >
-              {balanceSaving ? "Saving…" : "Apply"}
-            </button>
-          </div>
           {admin?.role === "super_admin" ? (
             <div className="flex items-center gap-3">
               <button
@@ -461,6 +427,8 @@ export default function AdminUserProfilePage() {
           ) : null}
         </div>
       </SectionCard>
+
+      <UserCreditsCard userId={userId} disabled={isDeleted} />
 
       <SectionCard title="Personal Brain">
         {personalBrain ? (

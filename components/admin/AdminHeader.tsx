@@ -20,6 +20,7 @@ const TITLE_MAP: Record<string, string> = {
   "/extension": "Chrome Extension",
   "/analytics": "Analytics",
   "/billing": "Billing & Plans",
+  "/credits": "AI Credits",
   "/content": "Content & Templates",
   "/community": "Community CMS",
   "/email": "Email",

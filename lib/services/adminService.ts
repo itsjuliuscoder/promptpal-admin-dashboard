@@ -461,6 +461,87 @@ export interface CommunityCmsReport {
   resolution?: string;
 }
 
+// ── AI credits ────────────────────────────────────────────────────────────────────────────────
+/** "wallet" credits never expire; "monthly" credits only count for the current billing month. */
+export type CreditBucket = "wallet" | "monthly";
+
+export interface AdminCreditBalance {
+  plan: string;
+  /** Plan allowance plus this month's adjustment; null when unlimited. */
+  allowance: number | null;
+  planAllowance: number | null;
+  bonus: number;
+  used: number;
+  reserved: number;
+  remaining: number | null;
+  /** Purchased and admin-granted credits left (never expire). */
+  purchased: number;
+  purchasedUsed: number;
+  unlimited: boolean;
+  periodStart: string;
+  resetsAt: string;
+  breakdown: Record<string, number>;
+}
+
+export interface CreditAdjustment {
+  _id?: string;
+  bucket: CreditBucket;
+  amount: number;
+  applied: number;
+  reason: string;
+  adminEmail?: string | null;
+  balanceBefore: number | null;
+  balanceAfter: number | null;
+  createdAt?: string;
+}
+
+export interface AdminUserCredits {
+  balance: AdminCreditBalance;
+  adjustments: CreditAdjustment[];
+}
+
+export interface CreditSettingsValues {
+  monthlyCredits: Record<string, number | null>;
+  baseCost: Record<string, number>;
+  agentCost: Record<string, number>;
+  tierMultiplier: Record<string, number>;
+  bestMultiplier: number;
+  modelCreditTier: Record<string, string>;
+}
+
+export interface CreditSettingsResponse {
+  current: CreditSettingsValues;
+  defaults: CreditSettingsValues;
+  overrides: Partial<CreditSettingsValues>;
+  updatedAt: string | null;
+  updatedBy: { id: string; email: string | null; username: string | null } | null;
+  models: Array<{ id: string; name: string; credits: { generate: number; revise: number; best: number } }>;
+}
+
+export interface CreditUsageUserRow {
+  userId: string;
+  email: string | null;
+  name: string | null;
+  plan: string;
+  allowance: number | null;
+  bonus?: number;
+  used: number;
+  purchasedUsed?: number;
+  spent?: number;
+  periodEnd: string;
+}
+
+export interface CreditUsageResponse {
+  months: Array<{ month: string; used: number; purchasedUsed: number; activeUsers: number; breakdown: Record<string, number> }>;
+  current: {
+    totals: { users: number; used: number; purchasedUsed: number; bonus: number };
+    byPlan: Array<{ plan: string; users: number; used: number }>;
+    topSpenders: CreditUsageUserRow[];
+    outOfCredits: CreditUsageUserRow[];
+    outOfCreditsCount: number;
+  };
+}
+
 export const adminService = {
   getOverview: async (): Promise<AdminOverviewData> => {
     const response = await axios.get("/admin/overview");
@@ -490,8 +571,31 @@ export const adminService = {
     const response = await axios.patch(`/admin/block-user/${userId}`, { isBlocked });
     return response.data;
   },
-  editBalance: async (userId: string, amount: number) => {
-    const response = await axios.patch(`/admin/edit-balance/${userId}`, { amount });
+  getUserCredits: async (userId: string): Promise<{ success: boolean; data: AdminUserCredits }> => {
+    const response = await axios.get(`/admin/users/${userId}/credits`);
+    return response.data;
+  },
+  adjustUserCredits: async (
+    userId: string,
+    change: { amount: number; bucket: CreditBucket; reason: string },
+  ): Promise<{ success: boolean; data: { adjustment: CreditAdjustment; balance: AdminCreditBalance } }> => {
+    const response = await axios.post(`/admin/users/${userId}/credits/adjust`, change);
+    return response.data;
+  },
+  getCreditSettings: async (): Promise<{ success: boolean; data: CreditSettingsResponse }> => {
+    const response = await axios.get("/admin/credits/settings");
+    return response.data;
+  },
+  updateCreditSettings: async (changes: Partial<CreditSettingsValues>): Promise<{ success: boolean; data: CreditSettingsResponse }> => {
+    const response = await axios.put("/admin/credits/settings", changes);
+    return response.data;
+  },
+  resetCreditSettings: async (): Promise<{ success: boolean; data: CreditSettingsResponse }> => {
+    const response = await axios.post("/admin/credits/settings/reset");
+    return response.data;
+  },
+  getCreditUsage: async (months = 6): Promise<{ success: boolean; data: CreditUsageResponse }> => {
+    const response = await axios.get("/admin/credits/usage", { params: { months } });
     return response.data;
   },
   requestUserDeleteCode: async (userId: string) => {
