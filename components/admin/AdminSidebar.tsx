@@ -22,6 +22,7 @@ import {
   FiUserCheck,
   FiUserPlus,
   FiZap,
+  FiLayers,
 } from "react-icons/fi";
 import { useAdminAuth } from "@/lib/auth/AdminAuthProvider";
 
@@ -53,6 +54,7 @@ const sidebarGroups: SidebarGroup[] = [
       { label: "Personal Brain", path: "/personal-brain", icon: <FiCpu size={18} /> },
       { label: "Chrome Extension", path: "/extension", icon: <FiZap size={18} /> },
       { label: "Billing & Plans", path: "/billing", icon: <FiCreditCard size={18} /> },
+      { label: "AI Credits", path: "/credits", icon: <FiLayers size={18} /> },
       { label: "Community CMS", path: "/community", icon: <FiMessageCircle size={18} /> },
       { label: "Content & Templates", path: "/content", icon: <FiActivity size={18} /> },
       { label: "Feedback", path: "/feedback", icon: <FiMessageSquare size={18} /> },

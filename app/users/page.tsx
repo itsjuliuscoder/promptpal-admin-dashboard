@@ -173,9 +173,11 @@ export default function AdminUsersPage() {
               <option value="free">Free</option>
               <option value="starter">Starter</option>
               <option value="pro">Pro</option>
+              <option value="lifetime_starter">Lifetime Starter</option>
+              <option value="lifetime">Lifetime Pro</option>
               <option value="team_starter">Team Starter</option>
               <option value="team_pro">Team Pro</option>
-              <option value="trial">Trial</option>
+              <option value="trial">Trial (ending, no new trials)</option>
             </select>
             <select
               className="admin-select"
