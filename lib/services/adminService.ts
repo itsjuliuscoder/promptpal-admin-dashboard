@@ -542,6 +542,71 @@ export interface CreditUsageResponse {
   };
 }
 
+
+// ---------------------------------------------------------------------------
+// Tested prompt pages (admin /seo-pages API, BE src/services/seoPages)
+// ---------------------------------------------------------------------------
+
+export interface SeoModelOutput {
+  provider: "openai" | "claude" | "gemini";
+  label: string;
+  model: string;
+  output: string;
+  input?: string;
+  tokens?: number;
+  costUsd?: number;
+  testedAt?: string;
+}
+
+export interface SeoPageContent {
+  role?: string;
+  task?: string;
+  targetModel?: string;
+  whatItDoes?: string;
+  whenToUse?: string;
+  outputNotes?: string;
+  variables?: Array<{ name: string; description?: string; example?: string }>;
+  exampleInput?: string;
+  variations?: Array<{ title: string; whenToUse?: string; prompt: string }>;
+  commonMistakes?: Array<{ mistake: string; fix: string }>;
+  faqs?: Array<{ question: string; answer: string }>;
+  modelOutputs?: SeoModelOutput[];
+  relatedPromptSlugs?: string[];
+  lastTestedAt?: string;
+  refresh?: { needsReview?: boolean; reasons?: string[]; checkedAt?: string };
+  source?: { batchId?: string; row?: number; generatorModel?: string };
+  quality?: { passed?: boolean; reasons?: string[]; wordCount?: number; maxOverlap?: number; checkedAt?: string };
+  review?: { approved?: boolean; approvedBy?: string; approvedAt?: string; rejectedReason?: string };
+  costUsd?: number;
+}
+
+export interface SeoPageRow {
+  _id: string;
+  slug: string;
+  title: string;
+  text?: string;
+  description?: string;
+  seoTitle?: string;
+  metaDescription?: string;
+  category?: string;
+  tags?: string[];
+  status: "in_review" | "approved" | "archived" | "draft";
+  isPublic?: boolean;
+  createdAt?: string;
+  publishedAt?: string | null;
+  seoPage?: SeoPageContent;
+}
+
+export type SeoPageStatusFilter = "in_review" | "passed" | "failed" | "approved" | "rejected" | "needs_review" | "all";
+
+export interface SeoPageList {
+  pages: SeoPageRow[];
+  total: number;
+  page: number;
+  limit: number;
+  batches: string[];
+}
+
 export const adminService = {
   getOverview: async (): Promise<AdminOverviewData> => {
     const response = await axios.get("/admin/overview");
@@ -1064,5 +1129,25 @@ export const adminService = {
       payload
     );
     return response.data as { submission: CreatorSubmission };
+  },
+  listSeoPages: async (params: { batch?: string; status?: SeoPageStatusFilter; page?: number; limit?: number }) => {
+    const response = await axios.get("/admin/seo-pages", { params });
+    return response.data.data as SeoPageList;
+  },
+  getSeoPage: async (id: string) => {
+    const response = await axios.get(`/admin/seo-pages/${id}`);
+    return response.data.data as SeoPageRow;
+  },
+  updateSeoPage: async (id: string, changes: Partial<Pick<SeoPageRow, "title" | "text" | "seoTitle" | "metaDescription" | "category" | "tags">> & { seoPage?: Partial<SeoPageContent> }) => {
+    const response = await axios.put(`/admin/seo-pages/${id}`, changes);
+    return response.data.data as SeoPageRow;
+  },
+  approveSeoPages: async (ids: string[]) => {
+    const response = await axios.post("/admin/seo-pages/approve", { ids });
+    return response.data.data as { approved: Array<{ id: string; slug: string }>; missing: number };
+  },
+  rejectSeoPage: async (id: string, reason: string) => {
+    const response = await axios.post(`/admin/seo-pages/${id}/reject`, { reason });
+    return response.data.data as { id: string; slug: string };
   },
 };
