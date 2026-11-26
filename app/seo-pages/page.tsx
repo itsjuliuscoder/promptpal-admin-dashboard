@@ -318,6 +318,18 @@ function SeoPageDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
     }
   };
 
+  const resolveRefresh = async (accept: boolean) => {
+    if (accept && !window.confirm("Put the refreshed outputs live on this page? Check that \"How the outputs differed\" still fits them.")) return;
+    try {
+      if (accept) await adminService.acceptSeoRefresh(id);
+      else await adminService.dismissSeoRefresh(id);
+      setPage(await adminService.getSeoPage(id));
+      onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  };
+
   const setSeo = (patch: Partial<SeoPageContent>) => setDraft((d) => (d ? { ...d, seo: { ...d.seo, ...patch } } : d));
   const quality = page?.seoPage?.quality;
 
@@ -342,6 +354,27 @@ function SeoPageDetail({ id, onClose, onChanged }: { id: string; onClose: () => 
         <TableSkeleton />
       ) : (
         <div className="space-y-6">
+          {page.seoPage?.refresh?.needsReview ? (
+            <div className="space-y-3 rounded-2xl border border-[color:var(--admin-border)] p-4 text-sm">
+              <p className="font-semibold">Monthly refresh flagged this page ({formatDate(page.seoPage.refresh.checkedAt)})</p>
+              <ul className="list-disc pl-5 text-[color:var(--admin-text-muted)]">
+                {(page.seoPage.refresh.reasons ?? []).map((r) => <li key={r}>{r}</li>)}
+              </ul>
+              {(page.seoPage.refresh.candidateOutputs ?? []).map((o) => (
+                <details key={o.provider} className="rounded-xl border border-[color:var(--admin-border)] p-3">
+                  <summary className="cursor-pointer font-semibold">New {o.label} output ({o.model})</summary>
+                  <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap text-xs">{o.output}</pre>
+                </details>
+              ))}
+              <div className="flex flex-wrap gap-2">
+                {(page.seoPage.refresh.candidateOutputs ?? []).length ? (
+                  <button type="button" className="admin-button admin-button-primary" onClick={() => resolveRefresh(true)}>Accept new outputs</button>
+                ) : null}
+                <button type="button" className="admin-button admin-button-secondary" onClick={() => resolveRefresh(false)}>Keep current outputs</button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="rounded-2xl border border-[color:var(--admin-border)] p-4 text-sm">
             <p className="font-semibold">Quality gate: {quality?.passed ? "passed" : "failed"}</p>
             {quality?.reasons?.length ? (

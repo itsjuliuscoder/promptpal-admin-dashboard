@@ -573,7 +573,7 @@ export interface SeoPageContent {
   modelOutputs?: SeoModelOutput[];
   relatedPromptSlugs?: string[];
   lastTestedAt?: string;
-  refresh?: { needsReview?: boolean; reasons?: string[]; checkedAt?: string };
+  refresh?: { needsReview?: boolean; reasons?: string[]; checkedAt?: string; candidateOutputs?: SeoModelOutput[] };
   source?: { batchId?: string; row?: number; generatorModel?: string };
   quality?: { passed?: boolean; reasons?: string[]; wordCount?: number; maxOverlap?: number; checkedAt?: string };
   review?: { approved?: boolean; approvedBy?: string; approvedAt?: string; rejectedReason?: string };
@@ -1149,5 +1149,15 @@ export const adminService = {
   rejectSeoPage: async (id: string, reason: string) => {
     const response = await axios.post(`/admin/seo-pages/${id}/reject`, { reason });
     return response.data.data as { id: string; slug: string };
+  },
+  /** Puts the outputs from a flagged monthly refresh live. */
+  acceptSeoRefresh: async (id: string) => {
+    const response = await axios.post(`/admin/seo-pages/${id}/accept-refresh`);
+    return response.data.data as { accepted: boolean };
+  },
+  /** Keeps the current outputs and clears the refresh flag. */
+  dismissSeoRefresh: async (id: string) => {
+    const response = await axios.post(`/admin/seo-pages/${id}/dismiss-refresh`);
+    return response.data.data as { dismissed: boolean };
   },
 };
